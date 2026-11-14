@@ -1,6 +1,7 @@
 /**
- * Load OpenCV.js in a dedicated Web Worker (see opencv-worker.js).
+ * OpenCV.js runs in a dedicated module Web Worker (see opencv-worker.js).
  * The library is served locally from src/vendor/opencv/, never from a CDN.
+ * This module loads it and forwards requests (detect, warp, process).
  */
 
 /**
@@ -9,39 +10,75 @@
 
 /** @type {Promise<OpenCvHandle> | null} */
 let loading = null;
+let nextId = 1;
+/** @type {Map<number, { resolve: (v: any) => void, reject: (e: Error) => void }>} */
+const pending = new Map();
 
 /** Error thrown when src/vendor/opencv/opencv.js is absent. */
 export class OpenCvMissingError extends Error {}
 
+/** @param {Error} error */
+function failAll(error) {
+  for (const { reject } of pending.values()) reject(error);
+  pending.clear();
+}
+
 /**
- * @param {number} [timeoutMs] give up after this delay
+ * @param {Worker} target
+ * @param {string} type
+ * @param {object} payload
+ * @param {Transferable[]} transfer
+ * @returns {Promise<any>}
+ */
+function send(target, type, payload, transfer) {
+  return new Promise((resolve, reject) => {
+    const id = nextId++;
+    pending.set(id, { resolve, reject });
+    target.postMessage({ id, type, payload }, transfer);
+  });
+}
+
+/**
+ * @param {number} [timeoutMs] give up loading after this delay
  * @returns {Promise<OpenCvHandle>}
  */
 export function loadOpenCV(timeoutMs = 60000) {
   if (loading) return loading;
   loading = new Promise((resolve, reject) => {
-    const worker = new Worker(new URL('./opencv-worker.js', import.meta.url));
+    const w = new Worker(new URL('./opencv-worker.js', import.meta.url), { type: 'module' });
     const timer = setTimeout(() => {
-      worker.terminate();
-      reject(new Error(`timeout after ${timeoutMs} ms`));
+      w.terminate();
+      failAll(new Error(`timeout after ${timeoutMs} ms`));
     }, timeoutMs);
-    worker.onmessage = (event) => {
+    w.onmessage = (event) => {
       const msg = event.data;
-      clearTimeout(timer);
-      if (msg.type === 'ready') {
-        resolve({ worker, version: msg.version });
-      } else {
-        worker.terminate();
-        reject(msg.missing ? new OpenCvMissingError(msg.message) : new Error(msg.message));
-      }
+      const entry = pending.get(msg.id);
+      if (!entry) return;
+      pending.delete(msg.id);
+      if (msg.ok) entry.resolve(msg.result);
+      else entry.reject(msg.missing ? new OpenCvMissingError(msg.error) : new Error(msg.error));
     };
-    worker.onerror = (event) => {
-      clearTimeout(timer);
-      worker.terminate();
-      reject(new Error(event.message || 'worker error'));
+    w.onerror = (event) => {
+      event.preventDefault();
+      failAll(new Error(event.message || 'worker error'));
     };
-    worker.postMessage({ type: 'load' });
+    send(w, 'load', {}, []).then(
+      ({ version }) => { clearTimeout(timer); resolve({ worker: w, version }); },
+      (error) => { clearTimeout(timer); w.terminate(); reject(error); },
+    );
   });
   loading.catch(() => { loading = null; });
   return loading;
+}
+
+/**
+ * Send a request to the OpenCV worker (loads it first if needed).
+ * @param {'detect' | 'warp' | 'process'} type
+ * @param {object} payload
+ * @param {Transferable[]} [transfer] buffers handed over (no copy)
+ * @returns {Promise<any>}
+ */
+export async function callOpenCV(type, payload, transfer = []) {
+  const { worker: w } = await loadOpenCV();
+  return send(w, type, payload, transfer);
 }

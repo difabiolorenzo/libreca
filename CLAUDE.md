@@ -1,6 +1,6 @@
 # Libreca — consignes pour Claude
 
-Application (PWA) qui numérise un livre papier avec une caméra et produit un PDF façon livre numérique. Projet personnel et open source (licence MPL-2.0), en français. Présentation : `README.md`. Tâches : `TODO.md`. Projet en phase de démarrage (v0.0 : structure, traduction, chargement d'OpenCV.js, test caméra).
+Application (PWA) qui numérise un livre papier avec une caméra et produit un PDF façon livre numérique. Projet personnel et open source (licence MPL-2.0), en français. Présentation : `README.md`. Tâches : `TODO.md`. Projet en phase de démarrage (v0.1 : prototype sans IA — détection de page en direct, capture manuelle, redressement, ajustement des coins, export PDF).
 
 ## Git : interdiction de commiter
 
@@ -29,17 +29,18 @@ Application (PWA) qui numérise un livre papier avec une caméra et produit un P
 | Où | Quoi |
 |---|---|
 | `index.html` | Page unique de l'application |
-| `src/main.js` | Point d'entrée : paramètres, vérifications, test caméra |
+| `src/main.js` | Point d'entrée : paramètres, vérifications, caméra, capture, pages, export |
 | `src/i18n/` | Traduction : `i18n.js` (`t()`, `data-i18n`, `data-i18n-attr`), `locales/fr.js` (référence), `locales/index.js` (langues disponibles) |
-| `src/lib/` | Utilitaires : `settings.js` (localStorage), `opencv.js` + `opencv-worker.js` (OpenCV.js chargé dans un Web Worker) |
+| `src/lib/` | Utilitaires : `settings.js` (localStorage), `image.js` (image de la vidéo, JPEG), `opencv.js` + `opencv-worker.js` (OpenCV.js dans un Web Worker module, requêtes `detect` / `warp` / `process`), `opencv-ready.js` (attente du module, partagée avec les tests) |
 | `src/styles/` | CSS |
 | `src/vendor/` | Bibliothèques tierces servies en local (`opencv/opencv.js`, non fourni dans le dépôt pour l'instant) |
-| `src/capture/` | Sources vidéo (`camera.js`) ; à venir : détection de page en direct, déclencheur (stabilité, netteté, changement de page) |
-| `src/pipeline/` | (prévu) Une étape = un module, fonction pure image → image : redressement, découpage gauche/droite, courbure, nettoyage, recadrage |
+| `src/capture/` | Sources vidéo (`camera.js`), détection de page en direct sur le flux (`live-detector.js`) ; à venir : déclencheur (stabilité, netteté, changement de page) |
+| `src/pipeline/` | Une étape = un module, fonction pure `(cv, image, …)` : `geometry.js` (quadrilatères, ajustement de droites, sans OpenCV), `skin.js` (détection de peau pour ignorer les doigts), `detect-page.js`, `perspective.js` ; à venir : découpage gauche/droite, courbure, nettoyage, recadrage |
 | `src/ai/` | (prévu) Modules IA optionnels (mains, effacement des doigts) |
-| `src/export/` | (prévu) Assemblage, OCR, PDF |
+| `src/export/` | `pdf.js` (générateur PDF minimal, une image JPEG par page) ; à venir : OCR |
+| `src/ui/` | Composants d'interface : `page-list.js` (pages capturées, en mémoire), `corner-editor.js` (ajustement manuel des coins) |
 | `tools/serve.mjs` | Serveur de développement sans dépendance (HTTP local, HTTPS sur le réseau local) |
-| `tests/` | Tests `node:test` ; `tests/fixtures/` : photos de livres de référence et résultats attendus |
+| `tests/` | Tests `node:test` ; `tests/helpers/` (OpenCV.js dans Node, images de synthèse) ; `tests/fixtures/` : photos de livres de référence et résultats attendus |
 
 Mettre ce tableau à jour quand la structure change.
 

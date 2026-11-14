@@ -37,7 +37,7 @@ Une application web installable (PWA) qui fait tout le traitement dans le naviga
 | Détection des mains | MediaPipe Hand Landmarker |
 | IA (effacement) | ONNX Runtime Web + LaMa (version légère) |
 | OCR | Tesseract.js |
-| PDF | pdf-lib |
+| PDF | générateur maison (v0.1), pdf-lib envisagé |
 | Stockage local | IndexedDB / OPFS |
 | Paquets natifs | Tauri (PC), Capacitor (Android) |
 
@@ -64,7 +64,7 @@ Sous Windows, `openssl` est fourni avec Git Bash ; y écrire `-subj "//CN=librec
 
 ### Tests
 
-`npm test` (ou `node --test`) : vérifie notamment que toutes les clés de traduction utilisées existent dans le dictionnaire français.
+`npm test` (ou `node --test`) : vérifie notamment que toutes les clés de traduction utilisées existent dans le dictionnaire français, la détection de page et le redressement (sur des images de synthèse, avec OpenCV.js chargé dans Node) et le générateur de PDF.
 
 ## Feuille de route
 
