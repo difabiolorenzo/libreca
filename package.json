@@ -1,0 +1,13 @@
+{
+  "name": "libreca",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Numérise un livre papier avec une caméra et produit un PDF façon livre numérique.",
+  "license": "MPL-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "node tools/serve.mjs",
+    "start:lan": "node tools/serve.mjs --lan --https",
+    "test": "node --test"
+  }
+}

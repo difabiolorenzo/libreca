@@ -18,11 +18,11 @@
 ## Prochaines étapes
 
 ### v0.0 — Mise en place
-- [ ] Initialiser le dépôt Git (.gitignore) — licence MPL-2.0 ajoutée
-- [ ] Créer la structure du projet (index.html, src/, serveur local)
-- [ ] Mettre en place le système de traduction (clés, dictionnaire FR) et le choix de langue dans les paramètres
-- [ ] Intégrer OpenCV.js et vérifier qu'il charge
-- [ ] Tester l'accès caméra (localhost / HTTPS) sur PC et Android
+- [x] Initialiser le dépôt Git (.gitignore) — licence MPL-2.0 ajoutée
+- [x] Créer la structure du projet (index.html, src/, serveur local)
+- [x] Mettre en place le système de traduction (clés, dictionnaire FR) et le choix de langue dans les paramètres
+- [x] Intégrer OpenCV.js et vérifier qu'il charge — version 5.0.0, chargée dans un Web Worker
+- [x] Tester l'accès caméra (localhost / HTTPS) sur PC et Android — page de test prête ; reste à tester sur les appareils
 
 ### v0.1 — Prototype (sans IA)
 - [ ] Choix de la source vidéo (liste des caméras)

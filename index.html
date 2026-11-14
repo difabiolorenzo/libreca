@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Libreca</title>
+  <link rel="stylesheet" href="src/styles/main.css">
+  <script type="module" src="src/main.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <h1 data-i18n="app.title">Libreca</h1>
+    <p class="tagline" data-i18n="app.tagline"></p>
+  </header>
+
+  <main>
+    <section class="card" aria-labelledby="settings-title">
+      <h2 id="settings-title" data-i18n="settings.title"></h2>
+      <label class="field">
+        <span data-i18n="settings.language"></span>
+        <select id="language-select"></select>
+      </label>
+    </section>
+
+    <section class="card" aria-labelledby="diag-title">
+      <h2 id="diag-title" data-i18n="diagnostics.title"></h2>
+      <ul class="checks">
+        <li><span data-i18n="diagnostics.secureContext"></span> <output id="secure-status"></output></li>
+        <li><span data-i18n="diagnostics.opencv"></span> <output id="opencv-status"></output></li>
+      </ul>
+    </section>
+
+    <section class="card" aria-labelledby="camera-title">
+      <h2 id="camera-title" data-i18n="camera.title"></h2>
+      <div class="row">
+        <label class="field">
+          <span data-i18n="camera.source"></span>
+          <select id="camera-select" disabled></select>
+        </label>
+        <button id="camera-start" type="button" data-i18n="camera.start"></button>
+        <button id="camera-stop" type="button" data-i18n="camera.stop" disabled></button>
+      </div>
+      <output id="camera-status" class="status"></output>
+      <video id="camera-preview" playsinline muted hidden></video>
+    </section>
+  </main>
+</body>
+</html>

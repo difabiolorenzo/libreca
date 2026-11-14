@@ -1,6 +1,6 @@
 # Libreca — consignes pour Claude
 
-Application (PWA) qui numérise un livre papier avec une caméra et produit un PDF façon livre numérique. Projet personnel et open source (licence MPL-2.0), en français. Présentation : `README.md`. Tâches : `TODO.md`. Projet en phase de démarrage : pas encore de code.
+Application (PWA) qui numérise un livre papier avec une caméra et produit un PDF façon livre numérique. Projet personnel et open source (licence MPL-2.0), en français. Présentation : `README.md`. Tâches : `TODO.md`. Projet en phase de démarrage (v0.0 : structure, traduction, chargement d'OpenCV.js, test caméra).
 
 ## Git : interdiction de commiter
 
@@ -24,17 +24,24 @@ Application (PWA) qui numérise un livre papier avec une caméra et produit un P
 - Paquets natifs plus tard : Tauri (PC), Capacitor (Android).
 - La caméra exige HTTPS ou `localhost` : à prévoir pour les tests sur téléphone via le réseau local.
 
-## Architecture (prévue)
+## Architecture
 
 | Où | Quoi |
 |---|---|
-| `src/capture/` | Sources vidéo, détection de page en direct, déclencheur (stabilité, netteté, changement de page) |
-| `src/pipeline/` | Une étape = un module, fonction pure image → image : redressement, découpage gauche/droite, courbure, nettoyage, recadrage |
-| `src/ai/` | Modules IA optionnels (mains, effacement des doigts) |
-| `src/export/` | Assemblage, OCR, PDF |
-| `tests/fixtures/` | Photos de livres de référence et résultats attendus |
+| `index.html` | Page unique de l'application |
+| `src/main.js` | Point d'entrée : paramètres, vérifications, test caméra |
+| `src/i18n/` | Traduction : `i18n.js` (`t()`, `data-i18n`, `data-i18n-attr`), `locales/fr.js` (référence), `locales/index.js` (langues disponibles) |
+| `src/lib/` | Utilitaires : `settings.js` (localStorage), `opencv.js` + `opencv-worker.js` (OpenCV.js chargé dans un Web Worker) |
+| `src/styles/` | CSS |
+| `src/vendor/` | Bibliothèques tierces servies en local (`opencv/opencv.js`, non fourni dans le dépôt pour l'instant) |
+| `src/capture/` | Sources vidéo (`camera.js`) ; à venir : détection de page en direct, déclencheur (stabilité, netteté, changement de page) |
+| `src/pipeline/` | (prévu) Une étape = un module, fonction pure image → image : redressement, découpage gauche/droite, courbure, nettoyage, recadrage |
+| `src/ai/` | (prévu) Modules IA optionnels (mains, effacement des doigts) |
+| `src/export/` | (prévu) Assemblage, OCR, PDF |
+| `tools/serve.mjs` | Serveur de développement sans dépendance (HTTP local, HTTPS sur le réseau local) |
+| `tests/` | Tests `node:test` ; `tests/fixtures/` : photos de livres de référence et résultats attendus |
 
-Mettre ce tableau à jour dès que la structure réelle existe.
+Mettre ce tableau à jour quand la structure change.
 
 ## Dépendances et licences
 
@@ -45,7 +52,12 @@ Mettre ce tableau à jour dès que la structure réelle existe.
 
 ## Commandes
 
-À compléter quand le projet sera initialisé (installer, lancer, tester, construire).
+Aucune installation : Node.js sert uniquement au serveur de développement et aux tests (`package.json` sans dépendance).
+
+- Lancer : `npm start` → http://localhost:8080/
+- Lancer sur le réseau local en HTTPS (téléphone) : `npm run start:lan` (certificat dans `.cert/`, voir `README.md`)
+- Tester : `npm test` (`node --test`)
+- Construire : rien à construire (pas de build).
 
 ## Façon de travailler
 

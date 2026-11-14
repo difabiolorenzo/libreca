@@ -43,7 +43,28 @@ Une application web installable (PWA) qui fait tout le traitement dans le naviga
 
 ## Démarrer
 
-*À venir avec le premier prototype (v0.1).*
+Prérequis : [Node.js](https://nodejs.org/) 20.12 ou plus récent (uniquement pour le serveur de développement : aucune dépendance npm à installer).
+
+1. Lancer le serveur local : `npm start` (ou `node tools/serve.mjs`).
+2. Ouvrir http://localhost:8080/ dans le navigateur.
+
+### Tester sur un téléphone Android
+
+La caméra n'est accessible qu'en HTTPS ou sur `localhost`. Deux possibilités :
+
+- **Câble USB (le plus simple)** : activer le débogage USB, lancer `npm start` sur le PC, puis `adb reverse tcp:8080 tcp:8080`. Sur le téléphone, ouvrir http://localhost:8080/ dans Chrome.
+- **Wi-Fi (HTTPS local)** : créer un certificat auto-signé une seule fois, puis lancer `npm run start:lan` et ouvrir l'adresse `https://192.168.x.x:8080/` affichée. Le navigateur affiche un avertissement : choisir « Paramètres avancés », puis « Continuer ».
+
+```sh
+mkdir .cert
+openssl req -x509 -newkey rsa:2048 -nodes -days 365 -keyout .cert/key.pem -out .cert/cert.pem -subj "/CN=libreca-dev"
+```
+
+Sous Windows, `openssl` est fourni avec Git Bash ; y écrire `-subj "//CN=libreca-dev"` (deux barres obliques). Le dossier `.cert/` est ignoré par Git.
+
+### Tests
+
+`npm test` (ou `node --test`) : vérifie notamment que toutes les clés de traduction utilisées existent dans le dictionnaire français.
 
 ## Feuille de route
 
@@ -56,3 +77,7 @@ Les idées et retours sont les bienvenus via les issues.
 ## Licence
 
 [Mozilla Public License 2.0](LICENSE) : libre et permissive. Les fichiers de Libreca modifiés et distribués doivent rester publics, mais Libreca peut être intégré dans d'autres projets.
+
+Bibliothèques tierces incluses dans `src/vendor/`, chacune avec sa propre licence :
+
+- [OpenCV.js](src/vendor/opencv/) 5.0.0 : Apache-2.0.
