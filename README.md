@@ -1,3 +1,18 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/banner-dark.svg">
+    <img src="docs/images/banner-light.svg" alt="Libreca : du livre papier au PDF, avec une simple caméra" width="820">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://difabiolorenzo.github.io/libreca/"><img src="https://img.shields.io/badge/essayer-en%20ligne-C2410C" alt="Essayer en ligne"></a>
+  <img src="https://img.shields.io/badge/version-v0.4-1B1A17" alt="Version v0.4">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MPL--2.0-1E6B45" alt="Licence MPL-2.0"></a>
+  <img src="https://img.shields.io/badge/100%25-hors%20ligne-5C574E" alt="100 % hors ligne">
+  <img src="https://img.shields.io/badge/plateformes-Windows%20%7C%20Linux%20%7C%20macOS%20%7C%20Android-5C574E" alt="Plateformes : Windows, Linux, macOS, Android">
+</p>
+
 # Libreca
 
 Libreca transforme un livre papier en PDF à partir d'une caméra. On pose le livre, l'application repère la page dans l'image, la photographie, la redresse et assemble le tout en un PDF qui se lit comme un livre numérique.
@@ -5,6 +20,26 @@ Libreca transforme un livre papier en PDF à partir d'une caméra. On pose le li
 Le nom vient de *libre* (le logiciel libre, et « livre » en espagnol), avec « cam » pour caméra. Se prononce « libréka ».
 
 Le projet en est à ses débuts (v0.2) : la détection de page, la capture automatique (page immobile, nette, sans doigt sur le texte, différente de la précédente) ou manuelle, le découpage des doubles pages à la reliure, le redressement, l'ajustement des coins et l'export PDF fonctionnent, le reste est à venir.
+
+## Aperçu
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/bibliotheque-nuit.png">
+    <img src="docs/images/bibliotheque-papier.png" alt="Écran Bibliothèque de Libreca : liste des livres en cours et bouton « Nouveau livre »" width="820">
+  </picture>
+  <br>
+  <em>La bibliothèque, en thème Papier (ou Nuit selon les réglages de votre système).</em>
+</p>
+
+```mermaid
+flowchart LR
+  A[📷 Caméra] --> B[Détection de la page]
+  B --> C[Capture auto ou manuelle]
+  C --> D[Redressement et découpage]
+  D --> E[Nettoyage]
+  E --> F[📄 PDF]
+```
 
 ## Fonctionnalités prévues
 

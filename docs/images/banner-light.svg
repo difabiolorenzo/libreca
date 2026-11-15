@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" role="img" aria-label="Libreca : du livre papier au PDF, avec une simple caméra">
+  <rect width="1280" height="400" rx="24" fill="#F4EFE6"/>
+  <g transform="translate(150 92) scale(2.45)">
+    <path d="M8 24V8h16M64 8h16v16M80 64v16H64M24 80H8V64" fill="none" stroke="#C2410C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M44 30c-7-5-15-6-22-5v35c7-1 15 0 22 5 7-5 15-6 22-5V25c-7-1-15 0-22 5zM44 30v35" fill="none" stroke="#1B1A17" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="440" y="200" font-family="Fraunces, Georgia, 'Times New Roman', serif" font-size="112" font-weight="600" letter-spacing="-3" fill="#1B1A17">libre<tspan fill="#C2410C">ca</tspan></text>
+  <text x="444" y="262" font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="34" fill="#5C574E">Du livre papier au PDF, avec une simple caméra.</text>
+  <text x="444" y="314" font-family="Inter, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="24" font-weight="600" letter-spacing="2" fill="#C2410C">100 % LOCAL · HORS LIGNE · LOGICIEL LIBRE</text>
+</svg>
