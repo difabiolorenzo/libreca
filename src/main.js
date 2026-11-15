@@ -1,8 +1,10 @@
 /**
- * Entry point (v0.1 prototype): screens (library, capture, book, page
- * review), settings dialog, camera with live page detection, rotation and
- * mirror, manual capture with perspective correction, manual corner
- * adjustment, page orientation, book title, simple PDF export.
+ * Entry point: screens (library, capture, book, page review), settings
+ * dialog, camera with live page detection, rotation and mirror, automatic
+ * or manual capture (stillness, sharpness, page change, finger on the text,
+ * light) with feedback and spoken announcements, double pages split at the
+ * binding, perspective correction, manual corner adjustment, page
+ * orientation, book title, simple PDF export.
  */
 
 import { t, setLanguage, getLanguage, matchLanguage, LANGUAGES, i18nEvents } from './i18n/i18n.js';
@@ -13,6 +15,11 @@ import { grabFrame, imageToJpeg, blobToImageData, orientJpeg } from './lib/image
 import { normalizeRotation, rotate, toggleMirror, orientationTransform } from './lib/orientation.js';
 import { isCameraSupported, listCameras, startCamera, stopCamera, cameraErrorKey } from './capture/camera.js';
 import { LiveDetector } from './capture/live-detector.js';
+import { AutoCapture } from './capture/auto-capture.js';
+import { flyToStrip, vibrate, playSound } from './capture/feedback.js';
+import { isSharp } from './pipeline/sharpness.js';
+import { DEFAULT_FINGER_THRESHOLD } from './pipeline/fingers.js';
+import { Announcer } from './ui/announcer.js';
 import { CornerEditor } from './ui/corner-editor.js';
 import { PageList } from './ui/page-list.js';
 import { createPageThumb } from './ui/page-thumb.js';
@@ -33,6 +40,15 @@ const CHIP_TONES = { ok: 'ok', warning: 'warning', error: 'danger', '': 'info' }
 
 /** Pages shown in the strip of the capture screen. */
 const STRIP_SIZE = 4;
+
+/** Mean page luminance (0..255) below which the light is too low. */
+const DARK_LIMIT = 60;
+
+/** Frames in a row before a hint appears over the feed (or goes away). */
+const HINT_FRAMES = 3;
+
+/** @type {Announcer} */
+let announcer;
 
 /**
  * Show a translated status. Kept as key + params so it can be re-translated
@@ -137,6 +153,26 @@ function initCameraSelect() {
   $('camera-switch').addEventListener('click', () => switchCamera().catch(() => {}));
   navigator.mediaDevices?.addEventListener?.('devicechange', () => refreshCameraList().catch(() => {}));
   refreshCameraList().catch(() => {});
+}
+
+/**
+ * A switch in the settings, kept in localStorage.
+ * @param {string} id input id
+ * @param {string} key setting name
+ * @param {boolean} fallback default value
+ */
+function initToggle(id, key, fallback) {
+  const input = $(id);
+  input.checked = getSetting(key, fallback) === true;
+  input.addEventListener('change', () => setSetting(key, input.checked));
+}
+
+function initCaptureSettings() {
+  initToggle('split-toggle', 'splitSpreads', true);
+  initToggle('vibrate-toggle', 'captureVibrate', true);
+  initToggle('sound-toggle', 'captureSound', true);
+  // Most computers cannot vibrate: no setting to show there.
+  $('vibrate-row').hidden = typeof navigator.vibrate !== 'function';
 }
 
 function initSettingsDialog() {
@@ -255,14 +291,84 @@ function stopCapture() {
   stream = null;
   $('camera-preview').srcObject = null;
   clearStatus($('scan-status'));
+  clearStatus($('detect-chip'));
+  for (const hint of Object.values(hints)) hint.reset();
+  announcer.clear();
   updateCaptureState();
 }
 
 /** @param {boolean} found */
 function onPageDetected(found) {
   $('capture').toggleAttribute('data-detected', found);
-  if (found) setStatus($('detect-chip'), 'scan.detected', {}, 'ok');
+}
+
+/**
+ * A warning over the feed (finger, blur, low light), shown once it has
+ * lasted a few frames so it does not flicker, and announced when it appears.
+ * @param {string} chipId
+ * @param {string} key translation key
+ */
+function createHint(chipId, key) {
+  let count = 0;
+  let shown = false;
+  return {
+    /** @param {boolean} active */
+    update(active) {
+      count = active ? Math.max(1, count + 1) : Math.min(-1, count - 1);
+      if (!shown && count >= HINT_FRAMES) {
+        shown = true;
+        setStatus($(chipId), key, {}, 'warning');
+        announcer.say(t(key));
+      } else if (shown && count <= -HINT_FRAMES) {
+        shown = false;
+        clearStatus($(chipId));
+      }
+    },
+    reset() {
+      count = 0;
+      shown = false;
+      clearStatus($(chipId));
+    },
+  };
+}
+
+/** @type {Record<'finger' | 'blurry' | 'dark', ReturnType<typeof createHint>>} */
+let hints;
+
+/** Automatic capture: on unless the user turned it off. */
+let autoMode = getSetting('autoCapture', true) !== false;
+const autoCapture = new AutoCapture();
+
+/** @param {boolean} on */
+function setAutoMode(on) {
+  autoMode = on;
+  setSetting('autoCapture', on);
+  $('capture-auto').setAttribute('aria-pressed', String(on));
+  $('capture').dataset.mode = on ? 'auto' : 'manual';
+}
+
+/**
+ * Every analysed frame: status chips over the feed, then the automatic
+ * capture decision.
+ * @param {import('./capture/live-detector.js').FrameInfo} info
+ */
+function onFrame(info) {
+  const found = info.quad !== null;
+  if (found) setStatus($('detect-chip'), info.spread ? 'scan.detectedSpread' : 'scan.detected', {}, 'ok');
   else clearStatus($('detect-chip'));
+
+  const finger = found && (info.finger ?? 0) > DEFAULT_FINGER_THRESHOLD;
+  const sharp = info.sharpness !== null && isSharp(info.sharpness);
+  hints.finger.update(finger);
+  // Blur only matters once the page is still (moving pictures are blurred).
+  hints.blurry.update(found && info.stable && info.sharpness !== null && !sharp);
+  hints.dark.update(found && info.brightness !== null && info.brightness < DARK_LIMIT);
+
+  if (!autoMode || capturing || !stream || !opencvReady) return;
+  const reason = autoCapture.evaluate({
+    found, stable: info.stable, sharp, finger, fingerprint: info.fingerprint, now: performance.now(),
+  });
+  if (reason === 'ready') onCapture();
 }
 
 /** @type {PageList} */
@@ -282,26 +388,82 @@ async function onCapture() {
   capturing = true;
   updateCaptureState();
   setStatus(status, 'scan.capturing');
+  const { fingerprint } = detector.info;
   try {
     const frame = grabFrame(video, Infinity, undefined, cameraOrientation);
     const photo = toJpeg(frame); // copies the pixels before the transfer below
-    const result = await callOpenCV('process', { image: frame, fallback: detector.quad }, [frame.data.buffer]);
-    const page = pages.add({ photo: await photo, quad: result.quad, image: await toJpeg(result.image), detected: result.detected });
-    const number = pages.numberOf(page.id);
-    setStatus(status, result.detected ? 'scan.captured' : 'scan.noPage', { number }, result.detected ? 'ok' : 'warning');
+    const result = await callOpenCV('process', {
+      image: frame, fallback: detector.quad, split: getSetting('splitSpreads', true) === true,
+    }, [frame.data.buffer]);
+    const shot = await photo;
+    const images = await Promise.all(result.pages.map((/** @type {any} */ p) => toJpeg(p.image)));
+    const added = result.pages.map((/** @type {any} */ p, /** @type {number} */ i) => pages.add({
+      photo: shot, quad: p.quad, image: images[i], detected: result.detected,
+    }));
+    // This page is taken: the automatic capture waits for the next one.
+    autoCapture.markCaptured(fingerprint, performance.now());
+    const numbers = added.map((/** @type {Page} */ page) => pages.numberOf(page.id));
+    /** @type {[string, Record<string, number>]} */
+    const [key, params] = !result.detected ? ['scan.noPage', { number: numbers[0] }]
+      : numbers.length > 1 ? ['scan.capturedTwo', { first: numbers[0], second: numbers[1] }]
+        : ['scan.captured', { number: numbers[0] }];
+    setStatus(status, key, params, result.detected ? 'ok' : 'warning');
+    announcer.say(t(key, params), { force: true });
+    captureFeedback(added.at(-1)?.url);
   } catch (error) {
     setStatus(status, 'scan.failed', { error: String(error) }, 'error');
+    announcer.say(t('scan.failed', { error: String(error) }), { force: true });
   } finally {
     capturing = false;
     updateCaptureState();
   }
 }
 
+/**
+ * The page shrinks into the strip, with a short vibration and sound if
+ * turned on.
+ * @param {string | undefined} url
+ */
+function captureFeedback(url) {
+  if (getSetting('captureVibrate', true) === true) vibrate();
+  if (getSetting('captureSound', true) === true) playSound();
+  if (!url) return;
+  // The strip is hidden in landscape: the page then flies to the page number.
+  const thumb = $('capture-strip').lastElementChild?.querySelector('img');
+  const target = thumb?.getClientRects().length ? thumb : $('capture-next');
+  flyToStrip(url, $('viewer').getBoundingClientRect(), target?.getBoundingClientRect() ?? null);
+}
+
+/**
+ * Space captures, on the capture screen only, unless a dialog is open or a
+ * control has the focus (Space then works that control).
+ * @param {KeyboardEvent} event
+ */
+function onCaptureKey(event) {
+  if (event.code !== 'Space' && event.key !== ' ') return;
+  if (document.body.dataset.screen !== 'capture' || document.querySelector('dialog[open]')) return;
+  const target = /** @type {HTMLElement} */ (event.target);
+  if (target.closest?.('button, a, input, select, textarea, [contenteditable]')) return;
+  event.preventDefault();
+  if (!event.repeat && !$('capture').disabled) onCapture();
+}
+
 function initCapture() {
   detector = new LiveDetector($('camera-preview'), $('page-overlay'),
-    async (image) => (await callOpenCV('detect', { image }, [image.data.buffer])).quad,
-    { onDetect: onPageDetected });
+    async (image) => await callOpenCV('detect', { image }, [image.data.buffer]),
+    { onDetect: onPageDetected, onFrame });
+  hints = {
+    finger: createHint('finger-chip', 'scan.finger'),
+    blurry: createHint('blur-chip', 'scan.blurry'),
+    dark: createHint('light-chip', 'scan.dark'),
+  };
   $('capture').addEventListener('click', onCapture);
+  $('capture-auto').addEventListener('click', () => {
+    setAutoMode(!autoMode);
+    announcer.say(t(autoMode ? 'capture.autoOn' : 'capture.autoOff'), { force: true });
+  });
+  setAutoMode(autoMode);
+  document.addEventListener('keydown', onCaptureKey);
   $('camera-rotate-left').addEventListener('click', () => setCameraOrientation(rotate(cameraOrientation, -90)));
   $('camera-rotate-right').addEventListener('click', () => setCameraOrientation(rotate(cameraOrientation, 90)));
   $('camera-mirror').addEventListener('click', () => setCameraOrientation(toggleMirror(cameraOrientation)));
@@ -502,16 +664,28 @@ async function onExport() {
 
 // --- Boot ---------------------------------------------------------------
 
+/**
+ * Service worker (sw.js, next to index.html): always the latest files,
+ * whatever the server's cache, and the app still opens offline.
+ */
+function registerServiceWorker() {
+  navigator.serviceWorker?.register(new URL('../sw.js', import.meta.url), { updateViaCache: 'none' })
+    .catch(() => {}); // the app works without it
+}
+
 async function main() {
+  registerServiceWorker();
   applyTheme(getTheme());
   applyIcons(document);
   const lang = getSetting('language', matchLanguage(navigator.languages ?? []));
   await setLanguage(lang);
 
   pages = new PageList(renderBook);
+  announcer = new Announcer($('announcer'));
   initLanguageSelect();
   initThemeSelect();
   initCameraSelect();
+  initCaptureSettings();
   initSettingsDialog();
   initCapture();
   initReview();

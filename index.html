@@ -56,8 +56,13 @@
         <video id="camera-preview" playsinline muted></video>
         <canvas id="page-overlay" class="overlay" aria-hidden="true"></canvas>
         <output id="camera-status" class="viewer-message"></output>
-        <output id="detect-chip" class="chip chip-overlay viewer-top"></output>
-        <output id="scan-status" class="chip chip-overlay viewer-bottom" aria-live="polite"></output>
+        <div class="viewer-top viewer-chips">
+          <output id="detect-chip" class="chip chip-overlay"></output>
+          <output id="finger-chip" class="chip chip-overlay"></output>
+          <output id="blur-chip" class="chip chip-overlay"></output>
+          <output id="light-chip" class="chip chip-overlay"></output>
+        </div>
+        <output id="scan-status" class="chip chip-overlay viewer-bottom"></output>
       </div>
       <div class="capture-tools" role="toolbar" data-i18n-attr="aria-label:camera.tools">
         <button id="camera-rotate-left" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:orientation.rotateLeft;title:orientation.rotateLeft"><span data-icon="rotate-left"></span></button>
@@ -71,8 +76,8 @@
         <span id="capture-count" class="meta"></span>
       </div>
       <div class="capture-bottom">
-        <span class="capture-slot"></span>
-        <button id="capture" type="button" class="shutter" data-mode="manual" data-i18n-attr="aria-label:scan.capture;title:scan.capture" disabled></button>
+        <button id="capture-auto" type="button" class="btn btn-secondary capture-slot" aria-pressed="true" data-i18n-attr="title:capture.autoHelp"><span data-icon="auto"></span><span data-i18n="capture.auto"></span></button>
+        <button id="capture" type="button" class="shutter" data-mode="auto" aria-keyshortcuts="Space" data-i18n-attr="aria-label:scan.capture;title:scan.captureHelp" disabled></button>
         <a class="btn btn-primary capture-slot" href="#/book" data-i18n="capture.finish"></a>
       </div>
     </section>
@@ -129,6 +134,9 @@
     </section>
   </main>
 
+  <!-- Spoken announcements (screen readers): captures and capture hints. -->
+  <div id="announcer" class="visually-hidden" aria-live="polite" aria-atomic="true"></div>
+
   <!-- Settings and checks: a dialog open over any screen. -->
   <dialog id="settings-dialog" class="dialog settings-dialog" aria-labelledby="settings-title">
     <div class="dialog-head">
@@ -148,6 +156,21 @@
       <label class="field">
         <span data-i18n="camera.source"></span>
         <select id="camera-select" disabled></select>
+      </label>
+    </section>
+    <section aria-labelledby="settings-capture">
+      <h3 id="settings-capture" class="label" data-i18n="settings.capture"></h3>
+      <label class="toggle">
+        <span data-i18n="settings.splitSpreads"></span>
+        <input id="split-toggle" type="checkbox" role="switch">
+      </label>
+      <label id="vibrate-row" class="toggle">
+        <span data-i18n="settings.vibrate"></span>
+        <input id="vibrate-toggle" type="checkbox" role="switch">
+      </label>
+      <label class="toggle">
+        <span data-i18n="settings.sound"></span>
+        <input id="sound-toggle" type="checkbox" role="switch">
       </label>
     </section>
     <section aria-labelledby="diag-title">

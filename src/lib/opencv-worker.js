@@ -9,12 +9,20 @@
 import { whenReady, openCvVersion } from './opencv-ready.js';
 import { detectPage } from '../pipeline/detect-page.js';
 import { warpPage } from '../pipeline/perspective.js';
-import { FULL_QUAD } from '../pipeline/geometry.js';
+import { FULL_QUAD, splitQuad } from '../pipeline/geometry.js';
+import { laplacianVariance } from '../pipeline/sharpness.js';
+import { measureMotion } from '../pipeline/motion.js';
+import { pageFingerprint } from '../pipeline/fingerprint.js';
+import { fingerCoverage } from '../pipeline/fingers.js';
+import { findBinding } from '../pipeline/binding.js';
 
 const OPENCV_URL = new URL('../vendor/opencv/opencv.js', import.meta.url);
 
 /** @type {any} */
 let cv = null;
+
+/** @type {{ width: number, height: number, data: Uint8ClampedArray } | null} */
+let lastDetectFrame = null;
 
 /** Thrown when opencv.js cannot be fetched. */
 class MissingError extends Error {}
@@ -47,20 +55,77 @@ const withImage = (image) => ({ result: { image }, transfer: [image.data.buffer]
 const handlers = {
   load,
 
-  /** Live preview: find the page in a small frame. */
-  detect: ({ image }) => ({ quad: detectPage(cv, image) }),
+  /** Live preview: find the page in a small frame and measure it on the
+   * straightened page (sharpness, fingerprint, finger on the text, light,
+   * double page and binding), plus the motion since the previous frame. */
+  detect: ({ image, measureQuality = true }) => {
+    const quad = detectPage(cv, image);
+    let sharpness = null;
+    let motion = null;
+    /** @type {object} */
+    let page = {};
+    if (measureQuality) {
+      if (quad) {
+        const straight = warpPage(cv, image, quad, { maxSide: 500 });
+        const fingerprint = pageFingerprint(straight);
+        sharpness = laplacianVariance(cv, straight);
+        page = {
+          fingerprint,
+          brightness: fingerprint.mean,
+          finger: fingerCoverage(straight),
+          ...findBinding(straight),
+        };
+      } else {
+        sharpness = laplacianVariance(cv, image);
+      }
+      if (lastDetectFrame && lastDetectFrame.width === image.width && lastDetectFrame.height === image.height) {
+        motion = measureMotion(lastDetectFrame, image);
+      } else {
+        motion = { meanDelta: 0, movingRatio: 0, score: 0 };
+      }
+      lastDetectFrame = {
+        width: image.width,
+        height: image.height,
+        data: new Uint8ClampedArray(image.data),
+      };
+    }
+    return { quad, sharpness, motion, ...page };
+  },
+
+  /** Measure sharpness (variance of Laplacian) on an image (or within a quad). */
+  sharpness: ({ image, quad, maxSide }) => ({
+    variance: laplacianVariance(cv, image, { quad, maxSide }),
+  }),
+
+  /** Measure motion between two frames. */
+  motion: ({ prev, curr, threshold }) => measureMotion(prev, curr, { threshold }),
+
+  /** Reset state between sessions or orientations. */
+  reset: () => {
+    lastDetectFrame = null;
+    return { ok: true };
+  },
 
   /** Straighten an image with known corners (manual adjustment). */
   warp: ({ image, quad }) => withImage(warpPage(cv, image, quad)),
 
   /** Capture: detect the page on the full frame (else use the last live
-   * detection, else the whole image), then straighten it. */
-  process: ({ image, fallback }) => {
+   * detection, else the whole image), then straighten it. With `split`, a
+   * double page is cut at the binding into two pages (left first). */
+  process: ({ image, fallback, split = false }) => {
     const detected = detectPage(cv, image) ?? fallback ?? null;
     const used = detected ?? FULL_QUAD;
-    const out = withImage(warpPage(cv, image, used));
-    Object.assign(out.result, { quad: used, detected: Boolean(detected) });
-    return out;
+    /** @type {any[]} */
+    let quads = [used];
+    if (split && detected) {
+      const { spread, gutter } = findBinding(warpPage(cv, image, used, { maxSide: 800 }));
+      if (spread && gutter !== null) quads = splitQuad(used, gutter);
+    }
+    const pages = quads.map((quad) => ({ quad, image: warpPage(cv, image, quad) }));
+    return {
+      result: { pages, detected: Boolean(detected), spread: pages.length > 1 },
+      transfer: pages.map((p) => p.image.data.buffer),
+    };
   },
 };
 

@@ -7,10 +7,25 @@
 
 import { grabFrame } from '../lib/image.js';
 import { NO_ORIENTATION, orientedSize } from '../lib/orientation.js';
-import { viewfinderCorners } from '../pipeline/geometry.js';
+import { viewfinderCorners, squareToQuad } from '../pipeline/geometry.js';
+import { StabilityTracker } from './stability.js';
 
 /** @typedef {import('../pipeline/geometry.js').Quad} Quad */
 /** @typedef {import('../lib/orientation.js').Orientation} Orientation */
+/** @typedef {import('../pipeline/fingerprint.js').Fingerprint} Fingerprint */
+
+/**
+ * What the last analysed frame shows (see the worker's `detect` request).
+ * @typedef {object} FrameInfo
+ * @property {Quad | null} quad page outline, smoothed (null: no page)
+ * @property {boolean} stable picture and outline still for a moment
+ * @property {number | null} sharpness variance of the Laplacian on the page
+ * @property {Fingerprint | null} fingerprint page fingerprint
+ * @property {number | null} finger share of skin on the text
+ * @property {number | null} brightness mean luminance of the page (0..255)
+ * @property {boolean} spread double page
+ * @property {number | null} gutter binding position across the double page
+ */
 
 /** Frames without a page before the outline disappears. */
 const MAX_MISSES = 3;
@@ -27,17 +42,32 @@ export class LiveDetector {
   /**
    * @param {HTMLVideoElement} video
    * @param {HTMLCanvasElement} overlay canvas covering the video
-   * @param {(image: ImageData) => Promise<Quad | null>} detect
-   * @param {{ maxSide?: number, interval?: number, onDetect?: (found: boolean) => void }} [options]
-   *   frame size, ms between frames, called when a page appears or disappears
+   * @param {(image: ImageData) => Promise<any>} detect
+   * @param {{
+   *   maxSide?: number,
+   *   interval?: number,
+   *   onDetect?: (found: boolean) => void,
+   *   onStability?: (stable: boolean, metrics: { sharpness: number | null, motion: any, quad: Quad | null }) => void,
+   *   onFrame?: (info: FrameInfo) => void
+   * }} [options] frame size, ms between frames, detection, stability and per-frame callbacks
    */
-  constructor(video, overlay, detect, { maxSide = 480, interval = 120, onDetect } = {}) {
+  constructor(video, overlay, detect, { maxSide = 480, interval = 120, onDetect, onStability, onFrame } = {}) {
     this.video = video;
     this.overlay = overlay;
     this.detect = detect;
     this.maxSide = maxSide;
     this.interval = interval;
     this.onDetect = onDetect;
+    this.onStability = onStability;
+    this.onFrame = onFrame;
+    /** @type {FrameInfo} */
+    this.info = emptyInfo();
+    this.stability = new StabilityTracker();
+    this.isStable = false;
+    /** @type {number | null} Laplacian variance */
+    this.sharpness = null;
+    /** @type {any} pixel motion result */
+    this.motion = null;
     /** @type {Orientation} camera rotation and mirror, applied to every frame */
     this.orientation = NO_ORIENTATION;
     this.frameCanvas = document.createElement('canvas');
@@ -64,6 +94,11 @@ export class LiveDetector {
     clearTimeout(this.timer);
     this.quad = null;
     this.misses = 0;
+    this.stability.reset();
+    this.isStable = false;
+    this.sharpness = null;
+    this.motion = null;
+    this.info = emptyInfo();
     this.draw();
     this.notify();
   }
@@ -76,6 +111,11 @@ export class LiveDetector {
     this.orientation = orientation;
     this.quad = null;
     this.misses = 0;
+    this.stability.reset();
+    this.isStable = false;
+    this.sharpness = null;
+    this.motion = null;
+    this.info = emptyInfo();
     this.draw();
     this.notify();
   }
@@ -104,24 +144,61 @@ export class LiveDetector {
     this.timer = setTimeout(() => requestAnimationFrame(() => this.tick()), wait);
   }
 
-  /** @param {Quad | null} found */
+  /** @param {Quad | { quad?: Quad | null, sharpness?: number | null, motion?: any, [key: string]: any } | null} found */
   update(found) {
-    if (found && !this.quad) this.appearedAt = performance.now();
-    if (found) {
+    const rawQuad = Array.isArray(found) ? found : (found?.quad ?? null);
+    const sharpness = (found && !Array.isArray(found) && typeof found.sharpness === 'number') ? found.sharpness : null;
+    const motion = (found && !Array.isArray(found) && found.motion) ? found.motion : null;
+
+    this.sharpness = sharpness;
+    this.motion = motion;
+
+    if (rawQuad && !this.quad) this.appearedAt = performance.now();
+    if (rawQuad) {
       // Smooth small jitter between frames.
       const prev = this.quad;
       this.quad = prev
-        ? /** @type {Quad} */ (found.map((p, i) => ({
+        ? /** @type {Quad} */ (rawQuad.map((p, i) => ({
           x: prev[i].x * 0.4 + p.x * 0.6,
           y: prev[i].y * 0.4 + p.y * 0.6,
         })))
-        : found;
+        : rawQuad;
       this.misses = 0;
     } else if (++this.misses >= MAX_MISSES) {
       this.quad = null;
     }
+
+    const { stable } = this.stability.add({
+      quad: this.quad,
+      motion,
+      timestamp: performance.now(),
+    });
+    const wasStable = this.isStable;
+    this.isStable = stable;
+    if (this.isStable !== wasStable) {
+      this.onStability?.(this.isStable, {
+        sharpness: this.sharpness,
+        motion: this.motion,
+        quad: this.quad,
+      });
+    }
+
+    const page = found && !Array.isArray(found) && rawQuad ? found : null;
+    this.info = {
+      quad: this.quad,
+      stable: this.isStable,
+      sharpness: this.sharpness,
+      fingerprint: page?.fingerprint ?? null,
+      finger: page?.finger ?? null,
+      brightness: page?.brightness ?? null,
+      // Keep the last double page while the outline lasts through a missed frame.
+      spread: page ? Boolean(page.spread) : (this.quad ? this.info.spread : false),
+      gutter: page ? (page.gutter ?? null) : (this.quad ? this.info.gutter : null),
+    };
+
     this.draw();
     this.notify();
+    this.onFrame?.(this.info);
   }
 
   draw() {
@@ -147,6 +224,22 @@ export class LiveDetector {
     const progress = Math.min(1, (performance.now() - this.appearedAt) / (reduced ? FADE_IN_MS : CLOSE_IN_MS));
     const eased = reduced ? 1 : 1 - (1 - progress) ** 3;
     const points = this.quad.map((p) => ({ x: left + p.x * boxW, y: top + p.y * boxH }));
+    // Double page: a dashed line along the binding.
+    const { gutter } = this.info;
+    if (this.info.spread && gutter !== null && progress >= 1) {
+      const quad = /** @type {Quad} */ (points);
+      const start = squareToQuad(quad, gutter, 0.04);
+      const end = squareToQuad(quad, gutter, 0.96);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.setLineDash([8 * dpr, 8 * dpr]);
+      ctx.lineWidth = 2 * dpr;
+      ctx.strokeStyle = color;
+      ctx.stroke();
+      ctx.restore();
+    }
     ctx.beginPath();
     for (const [a, corner, b] of viewfinderCorners(points, {
       spread: 1 + (CLOSE_IN_SPREAD - 1) * (1 - eased),
@@ -180,4 +273,11 @@ export class LiveDetector {
   reducedMotion() {
     return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   }
+}
+
+/** @returns {FrameInfo} */
+function emptyInfo() {
+  return {
+    quad: null, stable: false, sharpness: null, fingerprint: null, finger: null, brightness: null, spread: false, gutter: null,
+  };
 }

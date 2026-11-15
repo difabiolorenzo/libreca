@@ -1,0 +1,11 @@
+# Apache (WAMP, XAMPP…) when Libreca is served from a folder of the web
+# server instead of `npm start`. Same rule as tools/serve.mjs: no cache, so
+# the page and its Web Worker always load the same version of the code.
+# Ignored by `npm start` and by GitHub Pages.
+
+<IfModule mod_headers.c>
+  Header set Cache-Control "no-store"
+</IfModule>
+
+# Fonts: give them their own type (older Apache versions do not know it).
+AddType font/woff2 .woff2

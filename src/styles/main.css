@@ -435,6 +435,30 @@ select {
 .viewer-top { top: var(--space-3); }
 .viewer-bottom { bottom: var(--space-3); }
 
+/* Status chips over the feed: page found first, then the warnings. */
+.viewer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  width: max-content;
+}
+
+/* Auto / Manual switch, left of the shutter. */
+.capture-bottom #capture-auto { justify-self: start; }
+.capture-bottom #capture-auto[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
+
+/* The captured page shrinking into the strip (see src/capture/feedback.js). */
+.capture-fly {
+  position: fixed;
+  z-index: 20;
+  object-fit: contain;
+  border-radius: var(--radius-page);
+  box-shadow: var(--shadow-page);
+  pointer-events: none;
+  transform-origin: center;
+}
+
 .capture-strip {
   display: flex;
   align-items: center;
@@ -490,6 +514,7 @@ select {
   }
 
   .capture-bottom > :last-child { justify-self: center; align-self: end; }
+  .capture-bottom #capture-auto { justify-self: center; align-self: start; }
 }
 
 /* --- Dialogs (settings, corner adjustment) ------------------------------ */

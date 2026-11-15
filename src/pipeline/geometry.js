@@ -182,6 +182,51 @@ export function quadSize([tl, tr, br, bl]) {
 }
 
 /**
+ * Point of a quad seen in perspective, from coordinates on the flat page:
+ * (0, 0) is the top-left corner, (1, 1) the bottom-right one. Exact
+ * projective mapping (square to quad), so 0.5 lands on the true middle of
+ * the page, not on the middle of its foreshortened edge.
+ * @param {Quad} quad ordered corners (TL, TR, BR, BL), any unit
+ * @param {number} u across, 0..1
+ * @param {number} v down, 0..1
+ * @returns {Point}
+ */
+export function squareToQuad([p0, p1, p2, p3], u, v) {
+  const dx1 = p1.x - p2.x;
+  const dx2 = p3.x - p2.x;
+  const dx3 = p0.x - p1.x + p2.x - p3.x;
+  const dy1 = p1.y - p2.y;
+  const dy2 = p3.y - p2.y;
+  const dy3 = p0.y - p1.y + p2.y - p3.y;
+  let g = 0;
+  let h = 0;
+  const den = dx1 * dy2 - dx2 * dy1;
+  if ((dx3 !== 0 || dy3 !== 0) && den !== 0) {
+    g = (dx3 * dy2 - dx2 * dy3) / den;
+    h = (dx1 * dy3 - dx3 * dy1) / den;
+  }
+  const a = p1.x - p0.x + g * p1.x;
+  const b = p3.x - p0.x + h * p3.x;
+  const d = p1.y - p0.y + g * p1.y;
+  const e = p3.y - p0.y + h * p3.y;
+  const w = g * u + h * v + 1;
+  return { x: (a * u + b * v + p0.x) / w, y: (d * u + e * v + p0.y) / w };
+}
+
+/**
+ * Split a double page at the binding into its left and right pages.
+ * @param {Quad} quad ordered corners of the double page
+ * @param {number} gutter position of the binding across the flat page, 0..1
+ * @returns {[Quad, Quad]} left page, right page (ordered corners)
+ */
+export function splitQuad(quad, gutter) {
+  const [tl, tr, br, bl] = quad;
+  const top = squareToQuad(quad, gutter, 0);
+  const bottom = squareToQuad(quad, gutter, 1);
+  return [[tl, top, bottom, bl], [top, tr, br, bottom]];
+}
+
+/**
  * Viewfinder brackets drawn on a detected page: for each corner, a short
  * line along each of its two sides, `[toPrevious, corner, toNext]`.
  * `spread` > 1 pushes the brackets out from the page center (used to animate

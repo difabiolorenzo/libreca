@@ -29,17 +29,19 @@ Application (PWA) qui numérise un livre papier avec une caméra et produit un P
 | Où | Quoi |
 |---|---|
 | `index.html` | Page unique de l'application |
+| `sw.js` | Service worker : chaque fichier revérifié auprès du serveur à chaque chargement (page et Web Worker toujours de la même version, malgré le cache de 10 min de GitHub Pages), copie gardée pour le hors-ligne |
+| `.htaccess` | Cache désactivé quand l'appli est servie par Apache (WAMP) |
 | `src/main.js` | Point d'entrée : écrans (accueil, capture, livre, revue de page), fenêtre des paramètres et vérifications, caméra (rotation, miroir, choix de source), capture, pages (orientation), titre du livre, export |
 | `src/i18n/` | Traduction : `i18n.js` (`t()`, `data-i18n`, `data-i18n-attr`), `locales/fr.js` (référence), `locales/index.js` (langues disponibles) |
 | `src/lib/` | Utilitaires : `settings.js` (localStorage), `theme.js` (thème Papier / Nuit, attribut `data-theme`), `image.js` (image de la vidéo, JPEG, réorientation), `orientation.js` (rotation par quart de tour et miroir), `opencv.js` + `opencv-worker.js` (OpenCV.js dans un Web Worker module, requêtes `detect` / `warp` / `process`), `opencv-ready.js` (attente du module, partagée avec les tests) |
 | `src/styles/` | CSS : `tokens.css` (variables du système de design, thèmes Papier et Nuit, classe `theme-nuit`), `fonts.css` (polices locales), `components.css` (Button, Shutter, StatusChip, PageThumb, Toggle), `main.css` (mise en page) ; n'utiliser que les tokens |
 | `src/assets/` | Logo et icônes d'app en SVG |
 | `src/vendor/` | Bibliothèques tierces servies en local (`opencv/opencv.js`, non fourni dans le dépôt pour l'instant ; `fonts/` : Fraunces et Inter en WOFF2 sous-ensemblé, avec leur licence OFL) |
-| `src/capture/` | Sources vidéo (`camera.js`), détection de page en direct sur le flux (`live-detector.js`) ; à venir : déclencheur (stabilité, netteté, changement de page) |
-| `src/pipeline/` | Une étape = un module, fonction pure `(cv, image, …)` : `geometry.js` (quadrilatères, ajustement de droites, sans OpenCV), `skin.js` (détection de peau pour ignorer les doigts), `detect-page.js`, `perspective.js` ; à venir : découpage gauche/droite, courbure, nettoyage, recadrage |
+| `src/capture/` | Sources vidéo (`camera.js`), détection de page en direct sur le flux (`live-detector.js`), suivi de stabilité (`stability.js`), décision de capture automatique (`auto-capture.js`), retour à chaque capture : vignette, vibration, son (`feedback.js`) |
+| `src/pipeline/` | Une étape = un module, fonction pure `(cv, image, …)` : `geometry.js` (quadrilatères, ajustement de droites, sans OpenCV), `skin.js` (détection de peau pour ignorer les doigts), `detect-page.js`, `perspective.js`, `sharpness.js` (variance du Laplacien), `motion.js` (mouvement d'image et quadrilatère), `fingerprint.js` (empreinte de page, changement de page), `fingers.js` (doigt sur le texte), `binding.js` (double page et reliure ; découpage avec `splitQuad` de `geometry.js`) ; à venir : courbure, nettoyage, recadrage |
 | `src/ai/` | (prévu) Modules IA optionnels (mains, effacement des doigts) |
 | `src/export/` | `pdf.js` (générateur PDF minimal, une image JPEG par page) ; à venir : OCR |
-| `src/ui/` | Composants d'interface : `screens.js` (écrans et navigation par adresse `#/…`), `icons.js` (jeu d'icônes maison, `data-icon`), `status-chip.js` (pastille d'état), `page-thumb.js` (vignette de page), `page-list.js` (pages capturées, en mémoire, sans affichage), `corner-editor.js` (ajustement manuel des coins) |
+| `src/ui/` | Composants d'interface : `screens.js` (écrans et navigation par adresse `#/…`), `icons.js` (jeu d'icônes maison, `data-icon`), `status-chip.js` (pastille d'état), `page-thumb.js` (vignette de page), `page-list.js` (pages capturées, en mémoire, sans affichage), `corner-editor.js` (ajustement manuel des coins), `announcer.js` (annonces `aria-live` pour les lecteurs d'écran) |
 | `tools/serve.mjs` | Serveur de développement sans dépendance (HTTP local, HTTPS sur le réseau local) |
 | `tests/` | Tests `node:test` ; `tests/helpers/` (OpenCV.js dans Node, images de synthèse) ; `tests/fixtures/` : photos de livres de référence et résultats attendus |
 

@@ -36,7 +36,7 @@
 - [x] Redressement de perspective
 - [x] Ajustement manuel des coins en secours — souris, tactile et flèches du clavier
 - [x] Export PDF simple — petit générateur maison (JPEG intégrés tels quels), sans dépendance ; pdf-lib reste possible plus tard (OCR, métadonnées)
-- [ ] Tester sur de vraies photos de livres (à ajouter dans tests/fixtures/) et sur téléphone Android
+- [x] Tester sur de vraies photos de livres (à ajouter dans tests/fixtures/) et sur téléphone Android
 - [x] Détection de page robuste aux doigts posés sur la page (points de contour sur la peau ignorés, côtés ajustés par des droites, coin caché retrouvé)
 
 ### v0.1.5 — Système de design et écrans
@@ -69,14 +69,14 @@
 - [x] Paramètres : en faire une fenêtre modale accessible depuis tous les écrans
 
 ### v0.2 — Capture automatique
-- [ ] Mesure de stabilité (mouvement entre images)
-- [ ] Mesure de netteté (variance du Laplacien)
-- [ ] Détection de changement de page (empreinte d'image)
-- [ ] Retour à chaque capture : vignette qui rétrécit vers la bande du bas (pas de flash blanc), vibration courte désactivable, signal sonore désactivable
-- [ ] Annonces `aria-live="polite"` : « Page 24 capturée », « Doigt sur le texte — déplacez la main », image floue, lumière faible
-- [ ] Bouton Auto / Manuel (Auto désactivé = déclenchement manuel, pas de temps limite) ; raccourci Espace dans l'écran de capture uniquement
-- [ ] Pastilles d'état sur le flux : page / double page détectée, doigt repéré, image floue
-- [ ] Détection de la reliure et découpage gauche/droite
+- [x] Mesure de stabilité (mouvement entre images) — comparaison de luminance pixel par pixel (motion.js) et suivi temporel (stability.js)
+- [x] Mesure de netteté (variance du Laplacien) — netteté globale ou restreinte à la page redressée (sharpness.js)
+- [x] Détection de changement de page (empreinte d'image) — grille 16 × 24 de la page redressée, moyenne de chaque colonne retirée, distance par corrélation (fingerprint.js) ; capture automatique quand la page est trouvée, immobile, nette, sans doigt sur le texte et différente de la dernière capturée (auto-capture.js) ; seuils à calibrer sur de vraies photos
+- [x] Retour à chaque capture : vignette qui rétrécit vers la bande du bas (pas de flash blanc), vibration courte désactivable, signal sonore désactivable — son synthétisé (Web Audio), sans fichier ; réglages dans Paramètres › Capture
+- [x] Annonces `aria-live="polite"` : « Page 24 capturée », « Doigt sur le texte — déplacez la main », image floue, lumière faible — une seule zone d'annonce, sans répéter le même message
+- [x] Bouton Auto / Manuel (Auto désactivé = déclenchement manuel, pas de temps limite) ; raccourci Espace dans l'écran de capture uniquement — choix mémorisé
+- [x] Pastilles d'état sur le flux : page / double page détectée, doigt repéré, image floue — plus lumière faible ; une alerte apparaît après 3 images de suite, pour ne pas clignoter
+- [x] Détection de la reliure et découpage gauche/droite — double page si plus large que haute, reliure = colonnes sans texte et ombre au milieu (binding.js), découpage en perspective exacte ; trait pointillé sur la reliure dans le viseur ; désactivable dans les paramètres
 
 ### v0.3 — Qualité « livre numérique »
 - [ ] Nettoyage : fond blanc, ombres, contraste, modes couleur / gris / N&B
@@ -101,7 +101,7 @@
 - [ ] Métadonnées (titre, auteur), couverture
 - [ ] PDF accessible : langue du document déclarée, titre dans les métadonnées, ordre de lecture correct
 - [ ] Feuille d'export : bouton accent « Créer le PDF »
-- [ ] PWA hors ligne (service worker), icônes d'app et manifeste aux couleurs du logo
+- [ ] PWA hors ligne (service worker), icônes d'app et manifeste aux couleurs du logo — service worker en place (`sw.js` : fichiers toujours à jour, copie hors ligne) ; restent le manifeste et les icônes
 - [ ] Audit d'accessibilité WCAG 2.2 AA (clavier, lecteur d'écran, contrastes dans les deux thèmes)
 
 ### v1.0 — Distribution

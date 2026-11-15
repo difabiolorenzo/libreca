@@ -1,30 +1,28 @@
 # Libreca
 
-> Posez votre livre, Libreca s'occupe du reste.
+Libreca transforme un livre papier en PDF à partir d'une caméra. On pose le livre, l'application repère la page dans l'image, la photographie, la redresse et assemble le tout en un PDF qui se lit comme un livre numérique.
 
-**Libreca** transforme un livre papier en livre numérique (PDF) simplement en le posant devant une caméra. L'application détecte les pages en direct, les photographie automatiquement, les redresse, sépare les pages gauche et droite, les nettoie et assemble un PDF qui imite fidèlement un livre numérique.
+Le nom vient de *libre* (le logiciel libre, et « livre » en espagnol), avec « cam » pour caméra. Se prononce « libréka ».
 
-*Libre* : comme le logiciel libre, et « livre » en espagnol. *Libreca* (libréka) : on y entend aussi « cam », pour caméra.
-
-> ⚠️ Projet en phase de conception, pas encore utilisable.
+Le projet en est à ses débuts (v0.2) : la détection de page, la capture automatique (page immobile, nette, sans doigt sur le texte, différente de la précédente) ou manuelle, le découpage des doubles pages à la reliure, le redressement, l'ajustement des coins et l'export PDF fonctionnent, le reste est à venir.
 
 ## Fonctionnalités prévues
 
-- 📷 **Sources vidéo multiples** : caméra de téléphone, webcam, carte de capture, fichier vidéo.
-- 🤖 **Capture automatique** : la photo est prise dès que la page est stable et nette.
-- 📐 **Redressement** de la perspective et correction de la courbure.
-- ✂️ **Découpage** automatique des pages gauche et droite.
-- 🧼 **Nettoyage** : fond blanc, suppression des ombres, contraste, couleur ou noir et blanc.
-- ✋ **Effacement des doigts** par IA (module optionnel, fonctionne hors ligne).
-- 🔎 **OCR** optionnel pour un PDF où l'on peut chercher du texte.
-- 📚 **Export PDF** aux pages uniformes, façon livre numérique.
+- Plusieurs sources vidéo : caméra du téléphone, webcam, carte de capture, fichier vidéo.
+- Capture automatique dès que la page est stable et nette.
+- Redressement de la perspective et correction de la courbure des pages.
+- Découpage automatique des pages gauche et droite.
+- Nettoyage : fond blanc, ombres, contraste, couleur ou noir et blanc.
+- Effacement des doigts par IA, en module optionnel qui fonctionne hors ligne.
+- OCR optionnel, pour pouvoir chercher du texte dans le PDF.
+- Export PDF avec des pages de taille uniforme.
 
 ## Principes
 
-- **100 % local et hors ligne** : vos livres ne quittent jamais votre appareil.
-- **Multiplateforme** : Windows, Linux, macOS et Android.
-- **Sans IA d'abord** : redressement, découpage et nettoyage reposent sur la vision par ordinateur classique (OpenCV). L'IA n'arrive qu'en module optionnel et léger.
-- **Open source.**
+- Tout se passe sur l'appareil, hors ligne : aucune image n'est envoyée nulle part.
+- Un seul code pour Windows, Linux, macOS et Android.
+- Chaque traitement fonctionne d'abord sans IA, avec de la vision par ordinateur classique (OpenCV). L'IA ne vient qu'en complément, sous forme de module léger et facultatif.
+- Logiciel libre.
 
 ## Architecture (prévue)
 
@@ -43,17 +41,24 @@ Une application web installable (PWA) qui fait tout le traitement dans le naviga
 
 ## Démarrer
 
-Prérequis : [Node.js](https://nodejs.org/) 20.12 ou plus récent (uniquement pour le serveur de développement : aucune dépendance npm à installer).
+Prérequis : [Node.js](https://nodejs.org/) 20.12 ou plus récent, utilisé seulement pour le serveur de développement (aucune dépendance npm à installer).
 
 1. Lancer le serveur local : `npm start` (ou `node tools/serve.mjs`).
 2. Ouvrir http://localhost:8080/ dans le navigateur.
 
-### Tester sur un téléphone Android
+Sans rien installer, la dernière version publiée est aussi en ligne : https://difabiolorenzo.github.io/libreca/ (GitHub Pages, en HTTPS, donc la caméra fonctionne aussi sur téléphone).
 
-La caméra n'est accessible qu'en HTTPS ou sur `localhost`. Deux possibilités :
+Avec un serveur Apache (WAMP, XAMPP…), le fichier `.htaccess` fourni désactive le cache (module `mod_headers` requis, actif par défaut sous WAMP) : sans lui, le navigateur peut garder une ancienne version du Web Worker et la mélanger avec la nouvelle page, ce qui fait échouer la capture.
 
-- **Câble USB (le plus simple)** : activer le débogage USB, lancer `npm start` sur le PC, puis `adb reverse tcp:8080 tcp:8080`. Sur le téléphone, ouvrir http://localhost:8080/ dans Chrome.
-- **Wi-Fi (HTTPS local)** : créer un certificat auto-signé une seule fois, puis lancer `npm run start:lan` et ouvrir l'adresse `https://192.168.x.x:8080/` affichée. Le navigateur affiche un avertissement : choisir « Paramètres avancés », puis « Continuer ».
+Un service worker (`sw.js`) revérifie chaque fichier auprès du serveur à chaque chargement, quelles que soient ses règles de cache (GitHub Pages garde les fichiers 10 minutes), et garde une copie pour ouvrir l'application hors ligne.
+
+### Utiliser un téléphone Android comme caméra
+
+1. Brancher le téléphone au PC en USB.
+2. Sur le téléphone, dans la notification « Charge via USB », choisir le mode « Webcam » (Android 14 ou plus récent).
+3. Sur le PC, lancer `npm start`, ouvrir http://localhost:8080/ et choisir le téléphone comme caméra dans l'écran de capture.
+
+Il est aussi possible d'ouvrir l'application directement sur le téléphone en Wi-Fi : la caméra exige alors HTTPS. Créer un certificat auto-signé une fois, lancer `npm run start:lan` et ouvrir l'adresse `https://192.168.x.x:8080/` affichée, en acceptant l'avertissement du navigateur.
 
 ```sh
 mkdir .cert
@@ -64,7 +69,7 @@ Sous Windows, `openssl` est fourni avec Git Bash ; y écrire `-subj "//CN=librec
 
 ### Tests
 
-`npm test` (ou `node --test`) : vérifie notamment que toutes les clés de traduction utilisées existent dans le dictionnaire français, la détection de page et le redressement (sur des images de synthèse, avec OpenCV.js chargé dans Node) et le générateur de PDF.
+`npm test` (ou `node --test`) vérifie notamment que toutes les clés de traduction utilisées existent dans le dictionnaire français, la détection de page et le redressement (sur des images de synthèse, avec OpenCV.js chargé dans Node) et le générateur de PDF.
 
 ## Feuille de route
 
@@ -74,9 +79,13 @@ Voir [TODO.md](TODO.md).
 
 Les idées et retours sont les bienvenus via les issues.
 
+## Utilisation de l'IA dans le développement
+
+Le code et la documentation de Libreca sont écrits avec l'aide d'assistants d'IA (notamment Claude, via Claude Code). Chaque modification est relue, testée et validée par le mainteneur avant d'être intégrée. Ceci concerne uniquement le développement : l'application elle-même ne dépend d'aucun service d'IA en ligne.
+
 ## Licence
 
-[Mozilla Public License 2.0](LICENSE) : libre et permissive. Les fichiers de Libreca modifiés et distribués doivent rester publics, mais Libreca peut être intégré dans d'autres projets.
+[Mozilla Public License 2.0](LICENSE). Les fichiers de Libreca modifiés et distribués doivent rester publics, mais Libreca peut être intégré dans d'autres projets.
 
 Bibliothèques tierces incluses dans `src/vendor/`, chacune avec sa propre licence :
 
