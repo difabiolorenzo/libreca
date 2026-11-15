@@ -22,6 +22,8 @@ export default {
     pagesOther: '{count} pages',
     capture: 'Capturer des pages',
     exportTitle: 'Exporter',
+    rename: 'Renommer le livre',
+    renamePrompt: 'Titre du livre :',
   },
   capture: {
     close: 'Fermer la capture',
@@ -43,6 +45,7 @@ export default {
     general: 'Général',
     language: 'Langue',
     theme: 'Thème',
+    close: 'Fermer les paramètres',
     themes: {
       system: 'Comme l\'appareil',
       light: 'Papier (clair)',
@@ -64,6 +67,8 @@ export default {
     source: 'Source vidéo',
     defaultSource: 'Caméra par défaut',
     unnamed: 'Caméra {index}',
+    tools: 'Réglages de la caméra',
+    switch: 'Changer de caméra',
     unsupported: 'Ce navigateur ne donne pas accès à la caméra : essayez avec un autre navigateur.',
     insecure: 'Caméra indisponible : ouvrez Libreca avec une adresse en https://.',
     starting: 'Ouverture de la caméra…',
@@ -95,6 +100,13 @@ export default {
     exporting: 'Création du PDF…',
     exported: 'Le PDF est prêt : {pages}.',
     exportFailed: 'Le PDF n\'a pas pu être créé : {error}',
+  },
+  orientation: {
+    tools: 'Orientation de la page',
+    rotateLeft: 'Pivoter vers la gauche',
+    rotateRight: 'Pivoter vers la droite',
+    mirror: 'Retourner (effet miroir)',
+    failed: 'La page n\'a pas pu être pivotée : {error}',
   },
   corners: {
     title: 'Ajuster les coins',

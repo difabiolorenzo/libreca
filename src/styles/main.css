@@ -309,6 +309,24 @@ select {
   background: var(--surface);
 }
 
+.review-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.btn-row { display: flex; gap: var(--space-2); }
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.title-row .screen-title { min-width: 0; overflow-wrap: anywhere; }
+
 .review-actions {
   display: flex;
   flex-wrap: wrap;
@@ -366,7 +384,31 @@ select {
   height: 100%;
 }
 
-.viewer video { object-fit: contain; }
+.viewer { container-type: size; }
+
+/* Camera orientation: the video turns around the center of the viewer. */
+.viewer video {
+  object-fit: contain;
+  transform: var(--camera-transform, none);
+}
+
+.viewer video.quarter-turn {
+  inset: auto;
+  top: 50%;
+  left: 50%;
+  width: 100cqh;
+  height: 100cqw;
+  translate: -50% -50%;
+}
+
+.capture-tools {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.capture-tools [aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
 .viewer .overlay { pointer-events: none; }
 
 .viewer-message {
@@ -424,16 +466,18 @@ select {
 @media (orientation: landscape) and (max-height: 600px) {
   .screen-capture {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: auto minmax(0, 1fr) auto;
     grid-template-rows: auto minmax(0, 1fr);
     grid-template-areas:
-      "top controls"
-      "viewer controls";
+      "top top controls"
+      "tools viewer controls";
     column-gap: var(--space-5);
     padding-inline: max(var(--space-5), env(safe-area-inset-left)) max(var(--space-5), env(safe-area-inset-right));
   }
 
   .capture-top { grid-area: top; }
+  /* Camera tools in a column on the left of the viewer. */
+  .capture-tools { grid-area: tools; flex-direction: column; justify-content: center; flex-wrap: nowrap; }
   .viewer { grid-area: viewer; }
   /* No room for the strip: the page number stays in the top bar. */
   .capture-strip { display: none; }
@@ -448,9 +492,9 @@ select {
   .capture-bottom > :last-child { justify-self: center; align-self: end; }
 }
 
-/* --- Corner adjustment dialog ------------------------------------------- */
+/* --- Dialogs (settings, corner adjustment) ------------------------------ */
 
-.corner-dialog {
+.dialog {
   width: min(60rem, calc(100vw - 2rem));
   max-height: calc(100dvh - 2rem);
   box-sizing: border-box;
@@ -461,7 +505,23 @@ select {
   color: var(--ink);
 }
 
-.corner-dialog::backdrop { background: var(--scrim); }
+.dialog::backdrop { background: var(--scrim); }
+
+.settings-dialog { width: min(32rem, calc(100vw - 2rem)); }
+
+.dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.dialog-head h2 { margin: 0; font: var(--text-heading); }
+
+.settings-dialog section + section { margin-top: var(--space-6); }
+.settings-dialog .label { margin-bottom: var(--space-3); }
+.settings-dialog .field + .field { margin-top: var(--space-3); }
 
 .corner-dialog h2 { margin: 0 0 var(--space-1); font: var(--text-heading); }
 .corner-dialog .meta { margin-bottom: var(--space-4); }

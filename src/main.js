@@ -1,14 +1,16 @@
 /**
  * Entry point (v0.1 prototype): screens (library, capture, book, page
- * review, settings), camera with live page detection, manual capture with
- * perspective correction, manual corner adjustment, simple PDF export.
+ * review), settings dialog, camera with live page detection, rotation and
+ * mirror, manual capture with perspective correction, manual corner
+ * adjustment, page orientation, book title, simple PDF export.
  */
 
 import { t, setLanguage, getLanguage, matchLanguage, LANGUAGES, i18nEvents } from './i18n/i18n.js';
 import { getSetting, setSetting } from './lib/settings.js';
 import { THEMES, getTheme, applyTheme, setTheme, watchSystemTheme } from './lib/theme.js';
 import { loadOpenCV, callOpenCV, OpenCvMissingError } from './lib/opencv.js';
-import { grabFrame, imageToJpeg, blobToImageData } from './lib/image.js';
+import { grabFrame, imageToJpeg, blobToImageData, orientJpeg } from './lib/image.js';
+import { normalizeRotation, rotate, toggleMirror, orientationTransform } from './lib/orientation.js';
 import { isCameraSupported, listCameras, startCamera, stopCamera, cameraErrorKey } from './capture/camera.js';
 import { LiveDetector } from './capture/live-detector.js';
 import { CornerEditor } from './ui/corner-editor.js';
@@ -21,6 +23,7 @@ import { buildPdf } from './export/pdf.js';
 
 /** @typedef {import('./ui/page-list.js').Page} Page */
 /** @typedef {'ok' | 'warning' | 'error' | ''} State */
+/** @typedef {import('./lib/orientation.js').Orientation} Orientation */
 
 /** @param {string} id */
 const $ = (id) => /** @type {any} */ (document.getElementById(id));
@@ -104,12 +107,51 @@ async function refreshCameraList() {
   });
   select.value = cameras.some((c) => c.deviceId === wanted) ? wanted : '';
   select.disabled = false;
+  $('camera-switch').hidden = cameras.length < 2;
+}
+
+/**
+ * Remember a camera and use it right away if the capture screen is open.
+ * @param {string} deviceId '' for the default camera
+ */
+function chooseCamera(deviceId) {
+  setSetting('cameraId', deviceId);
+  $('camera-select').value = deviceId;
+  if (document.body.dataset.screen === 'capture') {
+    stopCapture();
+    startCapture();
+  }
+}
+
+/** Capture screen: go to the next camera in the list. */
+async function switchCamera() {
+  const cameras = await listCameras();
+  if (cameras.length < 2) return;
+  const current = stream?.getVideoTracks()[0]?.getSettings().deviceId ?? getSetting('cameraId', '');
+  const index = cameras.findIndex((c) => c.deviceId === current);
+  chooseCamera(cameras[(index + 1) % cameras.length].deviceId);
 }
 
 function initCameraSelect() {
-  $('camera-select').addEventListener('change', () => setSetting('cameraId', $('camera-select').value));
+  $('camera-select').addEventListener('change', () => chooseCamera($('camera-select').value));
+  $('camera-switch').addEventListener('click', () => switchCamera().catch(() => {}));
   navigator.mediaDevices?.addEventListener?.('devicechange', () => refreshCameraList().catch(() => {}));
   refreshCameraList().catch(() => {});
+}
+
+function initSettingsDialog() {
+  const dialog = $('settings-dialog');
+  document.addEventListener('click', (event) => {
+    const action = /** @type {HTMLElement} */ (event.target).closest?.('[data-action="settings"]');
+    if (!action) return;
+    refreshCameraList().catch(() => {});
+    dialog.showModal();
+  });
+  dialog.querySelector('[data-action="close"]').addEventListener('click', () => dialog.close());
+  // A click on the backdrop closes the dialog too.
+  dialog.addEventListener('click', (/** @type {MouseEvent} */ event) => {
+    if (event.target === dialog) dialog.close();
+  });
 }
 
 // --- Diagnostics --------------------------------------------------------
@@ -147,6 +189,28 @@ let detector;
 let capturing = false;
 /** Bumped on every start/stop so a late camera start is dropped. */
 let cameraSession = 0;
+
+/** @type {Orientation} rotation and mirror of the camera, remembered */
+let cameraOrientation = {
+  rotation: normalizeRotation(getSetting('cameraRotation', 0)),
+  mirror: getSetting('cameraMirror', false) === true,
+};
+
+/** @param {Orientation} orientation */
+function setCameraOrientation(orientation) {
+  cameraOrientation = orientation;
+  setSetting('cameraRotation', orientation.rotation);
+  setSetting('cameraMirror', orientation.mirror);
+  applyCameraOrientation();
+}
+
+function applyCameraOrientation() {
+  const video = $('camera-preview');
+  video.style.setProperty('--camera-transform', orientationTransform(cameraOrientation));
+  video.classList.toggle('quarter-turn', cameraOrientation.rotation % 180 !== 0);
+  $('camera-mirror').setAttribute('aria-pressed', String(cameraOrientation.mirror));
+  detector.setOrientation(cameraOrientation);
+}
 
 function updateCaptureState() {
   $('capture').disabled = !(stream && opencvReady) || capturing;
@@ -219,7 +283,7 @@ async function onCapture() {
   updateCaptureState();
   setStatus(status, 'scan.capturing');
   try {
-    const frame = grabFrame(video);
+    const frame = grabFrame(video, Infinity, undefined, cameraOrientation);
     const photo = toJpeg(frame); // copies the pixels before the transfer below
     const result = await callOpenCV('process', { image: frame, fallback: detector.quad }, [frame.data.buffer]);
     const page = pages.add({ photo: await photo, quad: result.quad, image: await toJpeg(result.image), detected: result.detected });
@@ -238,13 +302,28 @@ function initCapture() {
     async (image) => (await callOpenCV('detect', { image }, [image.data.buffer])).quad,
     { onDetect: onPageDetected });
   $('capture').addEventListener('click', onCapture);
-  // Escape leaves the capture screen (the corner dialog handles its own).
+  $('camera-rotate-left').addEventListener('click', () => setCameraOrientation(rotate(cameraOrientation, -90)));
+  $('camera-rotate-right').addEventListener('click', () => setCameraOrientation(rotate(cameraOrientation, 90)));
+  $('camera-mirror').addEventListener('click', () => setCameraOrientation(toggleMirror(cameraOrientation)));
+  applyCameraOrientation();
+  // Escape leaves the capture screen (an open dialog handles its own).
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && document.body.dataset.screen === 'capture') screens.go('book');
+    if (event.key === 'Escape' && document.body.dataset.screen === 'capture'
+      && !document.querySelector('dialog[open]')) screens.go('book');
   });
 }
 
 // --- Drawing the book on every screen --------------------------------------
+
+/** Title chosen by the user, '' until renamed (kept in memory, like the pages). */
+let bookTitle = '';
+
+function onRename() {
+  const title = globalThis.prompt(t('book.renamePrompt'), bookTitle || t('book.untitled'));
+  if (title === null) return;
+  bookTitle = title.trim();
+  renderBook();
+}
 
 /**
  * @param {Page} page
@@ -262,6 +341,8 @@ function renderBook() {
   const list = pages.pages;
   const count = list.length;
   const last = list.at(-1);
+
+  for (const el of document.querySelectorAll('[data-book-title]')) el.textContent = bookTitle || t('book.untitled');
 
   // Library card.
   const cover = $('library-cover');
@@ -311,7 +392,35 @@ function renderReview() {
   img.src = page.url;
   img.alt = t('review.image', { number });
   setStatus($('review-state'), page.detected ? 'review.stateDone' : 'review.stateRetake', {}, page.detected ? 'ok' : 'warning');
+  $('review-mirror').setAttribute('aria-pressed', String(page.orientation.mirror));
   return true;
+}
+
+/**
+ * The straightened image with the page orientation applied.
+ * @param {Blob} straight
+ * @param {Orientation} orientation
+ */
+function orientPage(straight, orientation) {
+  return orientation.rotation || orientation.mirror ? orientJpeg(straight, orientation) : Promise.resolve(straight);
+}
+
+let orienting = false;
+
+/** @param {(orientation: Orientation) => Orientation} change */
+async function onOrientPage(change) {
+  const page = pages.get(reviewId);
+  if (!page || orienting) return;
+  orienting = true;
+  try {
+    const orientation = change(page.orientation);
+    pages.update(page.id, { orientation, image: await orientPage(page.straight, orientation) });
+    clearStatus($('review-status'));
+  } catch (error) {
+    setStatus($('review-status'), 'orientation.failed', { error: String(error) }, 'error');
+  } finally {
+    orienting = false;
+  }
 }
 
 async function onAdjust() {
@@ -324,7 +433,8 @@ async function onAdjust() {
   try {
     const image = await blobToImageData(page.photo);
     const result = await callOpenCV('warp', { image, quad }, [image.data.buffer]);
-    pages.update(page.id, { quad, image: await toJpeg(result.image) });
+    const straight = await toJpeg(result.image);
+    pages.update(page.id, { quad, straight, image: await orientPage(straight, page.orientation) });
     clearStatus(status);
   } catch (error) {
     setStatus(status, 'corners.failed', { error: String(error) }, 'error');
@@ -342,6 +452,9 @@ function initReview() {
   cornerEditor = new CornerEditor($('corner-dialog'));
   $('review-adjust').addEventListener('click', onAdjust);
   $('review-delete').addEventListener('click', onDelete);
+  $('review-rotate-left').addEventListener('click', () => onOrientPage((o) => rotate(o, -90)));
+  $('review-rotate-right').addEventListener('click', () => onOrientPage((o) => rotate(o, 90)));
+  $('review-mirror').addEventListener('click', () => onOrientPage(toggleMirror));
 }
 
 // --- PDF export ---------------------------------------------------------------
@@ -361,6 +474,14 @@ function download(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
+/**
+ * Book title made safe for a file name on every system.
+ * @param {string} title
+ */
+function fileStem(title) {
+  return title.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/[. ]+$/, '').slice(0, 80);
+}
+
 async function onExport() {
   const status = $('export-status');
   const button = $('export-pdf');
@@ -370,7 +491,7 @@ async function onExport() {
     const jpegs = await Promise.all(pages.pages.map(async (p) => new Uint8Array(await p.image.arrayBuffer())));
     const pdf = buildPdf(jpegs);
     const date = new Date().toISOString().slice(0, 10);
-    download(new Blob([pdf], { type: 'application/pdf' }), `libreca-${date}.pdf`);
+    download(new Blob([pdf], { type: 'application/pdf' }), `${fileStem(bookTitle) || 'libreca'}-${date}.pdf`);
     setStatus(status, 'pages.exported', { pages: pageCount(jpegs.length) }, 'ok');
   } catch (error) {
     setStatus(status, 'pages.exportFailed', { error: String(error) }, 'error');
@@ -391,9 +512,11 @@ async function main() {
   initLanguageSelect();
   initThemeSelect();
   initCameraSelect();
+  initSettingsDialog();
   initCapture();
   initReview();
   $('export-pdf').addEventListener('click', onExport);
+  $('book-rename').addEventListener('click', onRename);
 
   screens = new Screens(document, {
     capture: { enter: () => { startCapture(); }, leave: stopCapture },
@@ -404,7 +527,6 @@ async function main() {
       },
       leave: () => clearStatus($('review-status')),
     },
-    settings: { enter: () => { refreshCameraList().catch(() => {}); } },
   }, 'library');
 
   i18nEvents.addEventListener('change', () => {

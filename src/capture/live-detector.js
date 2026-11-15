@@ -6,9 +6,11 @@
  */
 
 import { grabFrame } from '../lib/image.js';
+import { NO_ORIENTATION, orientedSize } from '../lib/orientation.js';
 import { viewfinderCorners } from '../pipeline/geometry.js';
 
 /** @typedef {import('../pipeline/geometry.js').Quad} Quad */
+/** @typedef {import('../lib/orientation.js').Orientation} Orientation */
 
 /** Frames without a page before the outline disappears. */
 const MAX_MISSES = 3;
@@ -36,6 +38,8 @@ export class LiveDetector {
     this.maxSide = maxSide;
     this.interval = interval;
     this.onDetect = onDetect;
+    /** @type {Orientation} camera rotation and mirror, applied to every frame */
+    this.orientation = NO_ORIENTATION;
     this.frameCanvas = document.createElement('canvas');
     /** @type {Quad | null} last detected page (normalized), smoothed */
     this.quad = null;
@@ -64,6 +68,18 @@ export class LiveDetector {
     this.notify();
   }
 
+  /**
+   * Change the camera orientation: the last outline no longer fits.
+   * @param {Orientation} orientation
+   */
+  setOrientation(orientation) {
+    this.orientation = orientation;
+    this.quad = null;
+    this.misses = 0;
+    this.draw();
+    this.notify();
+  }
+
   /** Report a change between "page found" and "no page". */
   notify() {
     const found = this.quad !== null;
@@ -78,7 +94,7 @@ export class LiveDetector {
     const { video } = this;
     if (video.readyState >= 2 && video.videoWidth > 0) {
       try {
-        this.update(await this.detect(grabFrame(video, this.maxSide, this.frameCanvas)));
+        this.update(await this.detect(grabFrame(video, this.maxSide, this.frameCanvas, this.orientation)));
       } catch {
         this.update(null);
       }
@@ -118,9 +134,9 @@ export class LiveDetector {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.clearRect(0, 0, width, height);
-    const { videoWidth, videoHeight } = this.video;
+    const { width: videoWidth, height: videoHeight } = orientedSize(this.video.videoWidth, this.video.videoHeight, this.orientation);
     if (!this.quad || !videoWidth || !videoHeight) return;
-    // The video is shown with object-fit: contain, so find the picture box.
+    // The video is shown oriented with object-fit: contain, so find the picture box.
     const scale = Math.min(width / videoWidth, height / videoHeight);
     const boxW = videoWidth * scale;
     const boxH = videoHeight * scale;

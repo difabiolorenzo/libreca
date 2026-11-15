@@ -60,6 +60,14 @@
 - [x] Microcopie : relire les clés de `fr.js` (vouvoiement, verbes d'action, pas de jargon technique) et prévoir 30 % de longueur en plus pour les autres langues
 - [x] Mention « Tout reste sur votre appareil » visible dans l'interface (écran d'accueil)
 
+### v0.1.6 — Corrections mineures et amélioration
+- [x] Capture : retourner l'image de la caméra (effet miroir)
+- [x] Capture : rotation de 90° de la caméra (sens horaire et anti-horaire)
+- [x] Capture : changer de source caméra directement depuis l'écran de capture
+- [x] Revue de page : retourner (miroir) et faire pivoter la page
+- [x] Livre : renommer le livre
+- [x] Paramètres : en faire une fenêtre modale accessible depuis tous les écrans
+
 ### v0.2 — Capture automatique
 - [ ] Mesure de stabilité (mouvement entre images)
 - [ ] Mesure de netteté (variance du Laplacien)

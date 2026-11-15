@@ -29,9 +29,9 @@ Application (PWA) qui numérise un livre papier avec une caméra et produit un P
 | Où | Quoi |
 |---|---|
 | `index.html` | Page unique de l'application |
-| `src/main.js` | Point d'entrée : écrans (accueil, capture, livre, revue de page, paramètres), vérifications, caméra, capture, pages, export |
+| `src/main.js` | Point d'entrée : écrans (accueil, capture, livre, revue de page), fenêtre des paramètres et vérifications, caméra (rotation, miroir, choix de source), capture, pages (orientation), titre du livre, export |
 | `src/i18n/` | Traduction : `i18n.js` (`t()`, `data-i18n`, `data-i18n-attr`), `locales/fr.js` (référence), `locales/index.js` (langues disponibles) |
-| `src/lib/` | Utilitaires : `settings.js` (localStorage), `theme.js` (thème Papier / Nuit, attribut `data-theme`), `image.js` (image de la vidéo, JPEG), `opencv.js` + `opencv-worker.js` (OpenCV.js dans un Web Worker module, requêtes `detect` / `warp` / `process`), `opencv-ready.js` (attente du module, partagée avec les tests) |
+| `src/lib/` | Utilitaires : `settings.js` (localStorage), `theme.js` (thème Papier / Nuit, attribut `data-theme`), `image.js` (image de la vidéo, JPEG, réorientation), `orientation.js` (rotation par quart de tour et miroir), `opencv.js` + `opencv-worker.js` (OpenCV.js dans un Web Worker module, requêtes `detect` / `warp` / `process`), `opencv-ready.js` (attente du module, partagée avec les tests) |
 | `src/styles/` | CSS : `tokens.css` (variables du système de design, thèmes Papier et Nuit, classe `theme-nuit`), `fonts.css` (polices locales), `components.css` (Button, Shutter, StatusChip, PageThumb, Toggle), `main.css` (mise en page) ; n'utiliser que les tokens |
 | `src/assets/` | Logo et icônes d'app en SVG |
 | `src/vendor/` | Bibliothèques tierces servies en local (`opencv/opencv.js`, non fourni dans le dépôt pour l'instant ; `fonts/` : Fraunces et Inter en WOFF2 sous-ensemblé, avec leur licence OFL) |

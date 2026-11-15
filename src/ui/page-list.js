@@ -4,6 +4,7 @@
  */
 
 /** @typedef {import('../pipeline/geometry.js').Quad} Quad */
+/** @typedef {import('../lib/orientation.js').Orientation} Orientation */
 
 /**
  * @typedef {object} Page
@@ -11,7 +12,9 @@
  * @property {Blob} photo original capture (JPEG), kept to adjust corners later
  * @property {Quad} quad corners used, normalized
  * @property {boolean} detected false when no page outline was found (to retake or adjust)
- * @property {Blob} image straightened page (JPEG)
+ * @property {Blob} straight straightened page before the page orientation (JPEG)
+ * @property {Orientation} orientation rotation and mirror chosen for this page
+ * @property {Blob} image straightened and oriented page (JPEG), shown and exported
  * @property {string} url object URL of `image`, for the thumbnails
  */
 
@@ -29,7 +32,10 @@ export class PageList {
    * @returns {Page}
    */
   add({ photo, quad, image, detected }) {
-    const page = { id: this.nextId++, photo, quad, image, detected, url: URL.createObjectURL(image) };
+    const page = {
+      id: this.nextId++, photo, quad, straight: image, orientation: { rotation: 0, mirror: false },
+      image, detected, url: URL.createObjectURL(image),
+    };
     this.pages.push(page);
     this.onChange();
     return page;
@@ -46,16 +52,17 @@ export class PageList {
   }
 
   /**
-   * Replace the straightened image after a corner adjustment (the corners
-   * are then set by hand, so the page no longer needs retaking).
+   * Replace the images after a corner adjustment (the corners are then set
+   * by hand, so the page no longer needs retaking) or a new orientation.
    * @param {number} id
-   * @param {{ quad: Quad, image: Blob }} data
+   * @param {{ image: Blob, quad?: Quad, straight?: Blob, orientation?: Orientation }} data
    */
-  update(id, { quad, image }) {
+  update(id, data) {
     const page = this.get(id);
     if (!page) return;
     URL.revokeObjectURL(page.url);
-    Object.assign(page, { quad, image, detected: true, url: URL.createObjectURL(image) });
+    Object.assign(page, data, { url: URL.createObjectURL(data.image) });
+    if (data.quad) page.detected = true;
     this.onChange();
   }
 

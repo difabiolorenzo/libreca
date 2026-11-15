@@ -25,14 +25,14 @@
           <span class="wordmark" aria-hidden="true">libre<span>ca</span></span>
           <span class="visually-hidden" data-i18n="app.title">Libreca</span>
         </h1>
-        <a class="btn btn-secondary btn-icon" href="#/settings" data-i18n-attr="aria-label:settings.title;title:settings.title"><span data-icon="settings"></span></a>
+        <button type="button" class="btn btn-secondary btn-icon" data-action="settings" data-i18n-attr="aria-label:settings.title;title:settings.title"><span data-icon="settings"></span></button>
       </header>
       <p class="tagline" data-i18n="app.tagline"></p>
 
       <article class="book-card card" aria-labelledby="library-book-title">
         <div id="library-cover" class="book-cover"></div>
         <div class="book-card-body">
-          <h2 id="library-book-title" class="book-title" data-i18n="book.untitled"></h2>
+          <h2 id="library-book-title" class="book-title" data-book-title></h2>
           <p id="library-book-meta" class="meta"></p>
           <a id="library-open" class="btn btn-secondary" href="#/book" hidden><span data-icon="book"></span><span data-i18n="library.open"></span></a>
         </div>
@@ -49,7 +49,7 @@
     <section class="screen screen-capture theme-nuit" data-screen="capture" aria-labelledby="capture-title" hidden>
       <div class="capture-top">
         <a class="btn btn-secondary btn-icon" href="#/book" data-i18n-attr="aria-label:capture.close;title:capture.close"><span data-icon="close"></span></a>
-        <h1 id="capture-title" class="capture-title book-title" tabindex="-1" data-i18n="book.untitled"></h1>
+        <h1 id="capture-title" class="capture-title book-title" tabindex="-1" data-book-title></h1>
         <output id="capture-next" class="chip"></output>
       </div>
       <div id="viewer" class="viewer">
@@ -58,6 +58,13 @@
         <output id="camera-status" class="viewer-message"></output>
         <output id="detect-chip" class="chip chip-overlay viewer-top"></output>
         <output id="scan-status" class="chip chip-overlay viewer-bottom" aria-live="polite"></output>
+      </div>
+      <div class="capture-tools" role="toolbar" data-i18n-attr="aria-label:camera.tools">
+        <button id="camera-rotate-left" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:orientation.rotateLeft;title:orientation.rotateLeft"><span data-icon="rotate-left"></span></button>
+        <button id="camera-rotate-right" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:orientation.rotateRight;title:orientation.rotateRight"><span data-icon="rotate-right"></span></button>
+        <button id="camera-mirror" type="button" class="btn btn-secondary btn-icon" aria-pressed="false" data-i18n-attr="aria-label:orientation.mirror;title:orientation.mirror"><span data-icon="mirror"></span></button>
+        <button id="camera-switch" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:camera.switch;title:camera.switch" hidden><span data-icon="switch-camera"></span></button>
+        <button type="button" class="btn btn-secondary btn-icon" data-action="settings" data-i18n-attr="aria-label:settings.title;title:settings.title"><span data-icon="settings"></span></button>
       </div>
       <div class="capture-strip">
         <ol id="capture-strip" class="strip" data-i18n-attr="aria-label:pages.title"></ol>
@@ -74,8 +81,12 @@
     <section class="screen" data-screen="book" aria-labelledby="book-title" hidden>
       <div class="top-bar">
         <a class="btn btn-secondary btn-icon" href="#/" data-i18n-attr="aria-label:nav.back;title:nav.back"><span data-icon="back"></span></a>
+        <button type="button" class="btn btn-secondary btn-icon" data-action="settings" data-i18n-attr="aria-label:settings.title;title:settings.title"><span data-icon="settings"></span></button>
       </div>
-      <h1 id="book-title" class="book-title screen-title" tabindex="-1" data-i18n="book.untitled"></h1>
+      <div class="title-row">
+        <h1 id="book-title" class="book-title screen-title" tabindex="-1" data-book-title></h1>
+        <button id="book-rename" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:book.rename;title:book.rename"><span data-icon="edit"></span></button>
+      </div>
       <p id="book-meta" class="meta"></p>
       <div class="section-head">
         <h2 class="label" data-i18n="pages.title"></h2>
@@ -94,12 +105,19 @@
       <div class="top-bar">
         <a class="btn btn-secondary btn-icon" href="#/book" data-i18n-attr="aria-label:nav.back;title:nav.back"><span data-icon="back"></span></a>
         <h1 id="review-title" class="top-bar-title" tabindex="-1"></h1>
-        <span class="top-bar-slot"></span>
+        <button type="button" class="btn btn-secondary btn-icon" data-action="settings" data-i18n-attr="aria-label:settings.title;title:settings.title"><span data-icon="settings"></span></button>
       </div>
       <div class="review-stage">
         <img id="review-image" alt="">
       </div>
-      <output id="review-state" class="chip"></output>
+      <div class="review-tools">
+        <output id="review-state" class="chip"></output>
+        <div class="btn-row" role="toolbar" data-i18n-attr="aria-label:orientation.tools">
+          <button id="review-rotate-left" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:orientation.rotateLeft;title:orientation.rotateLeft"><span data-icon="rotate-left"></span></button>
+          <button id="review-rotate-right" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:orientation.rotateRight;title:orientation.rotateRight"><span data-icon="rotate-right"></span></button>
+          <button id="review-mirror" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:orientation.mirror;title:orientation.mirror"><span data-icon="mirror"></span></button>
+        </div>
+      </div>
       <output id="review-status" class="status" aria-live="polite"></output>
       <div class="review-actions">
         <button id="review-delete" type="button" class="btn btn-secondary btn-danger"><span data-icon="trash"></span><span data-i18n="review.delete"></span></button>
@@ -109,39 +127,39 @@
         </div>
       </div>
     </section>
-
-    <!-- Settings and checks. -->
-    <section class="screen" data-screen="settings" aria-labelledby="settings-title" hidden>
-      <div class="top-bar">
-        <a class="btn btn-secondary btn-icon" href="#/" data-i18n-attr="aria-label:nav.back;title:nav.back"><span data-icon="back"></span></a>
-      </div>
-      <h1 id="settings-title" class="screen-title" tabindex="-1" data-i18n="settings.title"></h1>
-      <section class="card" aria-labelledby="settings-general">
-        <h2 id="settings-general" data-i18n="settings.general"></h2>
-        <label class="field">
-          <span data-i18n="settings.language"></span>
-          <select id="language-select"></select>
-        </label>
-        <label class="field">
-          <span data-i18n="settings.theme"></span>
-          <select id="theme-select"></select>
-        </label>
-        <label class="field">
-          <span data-i18n="camera.source"></span>
-          <select id="camera-select" disabled></select>
-        </label>
-      </section>
-      <section class="card" aria-labelledby="diag-title">
-        <h2 id="diag-title" data-i18n="diagnostics.title"></h2>
-        <ul class="checks">
-          <li><span data-i18n="diagnostics.secureContext"></span> <output id="secure-status" class="chip"></output></li>
-          <li><span data-i18n="diagnostics.opencv"></span> <output id="opencv-status" class="chip"></output></li>
-        </ul>
-      </section>
-    </section>
   </main>
 
-  <dialog id="corner-dialog" class="corner-dialog" aria-labelledby="corner-title">
+  <!-- Settings and checks: a dialog open over any screen. -->
+  <dialog id="settings-dialog" class="dialog settings-dialog" aria-labelledby="settings-title">
+    <div class="dialog-head">
+      <h2 id="settings-title" data-i18n="settings.title"></h2>
+      <button type="button" class="btn btn-secondary btn-icon" data-action="close" data-i18n-attr="aria-label:settings.close;title:settings.close"><span data-icon="close"></span></button>
+    </div>
+    <section aria-labelledby="settings-general">
+      <h3 id="settings-general" class="label" data-i18n="settings.general"></h3>
+      <label class="field">
+        <span data-i18n="settings.language"></span>
+        <select id="language-select"></select>
+      </label>
+      <label class="field">
+        <span data-i18n="settings.theme"></span>
+        <select id="theme-select"></select>
+      </label>
+      <label class="field">
+        <span data-i18n="camera.source"></span>
+        <select id="camera-select" disabled></select>
+      </label>
+    </section>
+    <section aria-labelledby="diag-title">
+      <h3 id="diag-title" class="label" data-i18n="diagnostics.title"></h3>
+      <ul class="checks">
+        <li><span data-i18n="diagnostics.secureContext"></span> <output id="secure-status" class="chip"></output></li>
+        <li><span data-i18n="diagnostics.opencv"></span> <output id="opencv-status" class="chip"></output></li>
+      </ul>
+    </section>
+  </dialog>
+
+  <dialog id="corner-dialog" class="dialog corner-dialog" aria-labelledby="corner-title">
     <h2 id="corner-title" data-i18n="corners.title"></h2>
     <p class="meta" data-i18n="corners.help"></p>
     <div class="corner-stage">
