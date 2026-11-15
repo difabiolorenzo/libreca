@@ -1,6 +1,6 @@
 /**
- * Captured pages of the book in progress, kept in memory for now (saving
- * comes later in v0.3). The screens draw them; this only holds the data.
+ * Pages of the open book. The screens draw them and main.js saves them
+ * (lib/store.js) on every change; this only holds the data.
  */
 
 /** @typedef {import('../pipeline/geometry.js').Quad} Quad */
@@ -36,13 +36,48 @@
  * @property {Blob} image
  */
 
+/** @typedef {Omit<Page, 'url' | 'beforeUrl'>} PageRecord a page as saved (no object URLs) */
+
+/**
+ * @typedef {{ type: 'add' | 'update', page: Page } | { type: 'remove', id: number }
+ *   | { type: 'move' } | { type: 'load' }} PageChange
+ */
+
+/**
+ * Move an item of an array to another index (in place).
+ * @template T
+ * @param {T[]} list
+ * @param {number} from
+ * @param {number} to clamped to the list
+ * @returns {boolean} true if something moved
+ */
+export function moveItem(list, from, to) {
+  const target = Math.max(0, Math.min(list.length - 1, to));
+  if (from < 0 || from >= list.length || from === target) return false;
+  const [item] = list.splice(from, 1);
+  list.splice(target, 0, item);
+  return true;
+}
+
 export class PageList {
-  /** @param {() => void} onChange called after every change */
+  /** @param {(change: PageChange) => void} onChange called after every change */
   constructor(onChange) {
     this.onChange = onChange;
     /** @type {Page[]} */
     this.pages = [];
     this.nextId = 1;
+  }
+
+  /**
+   * Replace all pages (a saved book being opened).
+   * @param {PageRecord[]} records in reading order
+   * @param {number} nextId
+   */
+  load(records, nextId) {
+    for (const page of this.pages) this.revoke(page);
+    this.pages = records.map((r) => ({ ...r, url: URL.createObjectURL(r.image), beforeUrl: URL.createObjectURL(r.before) }));
+    this.nextId = Math.max(nextId, ...records.map((r) => r.id + 1), 1);
+    this.onChange({ type: 'load' });
   }
 
   /**
@@ -57,7 +92,7 @@ export class PageList {
       before: data.straight, beforeUrl: URL.createObjectURL(data.straight), url: URL.createObjectURL(data.image),
     };
     this.pages.splice(index, 0, page);
-    this.onChange();
+    this.onChange({ type: 'add', page });
     return page;
   }
 
@@ -86,16 +121,39 @@ export class PageList {
     Object.assign(page, data, { url: URL.createObjectURL(data.image) });
     if (data.before) page.beforeUrl = URL.createObjectURL(data.before);
     if (data.quad) page.detected = true;
-    this.onChange();
+    this.onChange({ type: 'update', page });
+  }
+
+  /**
+   * Move a page to another position (0-based).
+   * @param {number} id
+   * @param {number} index
+   */
+  move(id, index) {
+    if (moveItem(this.pages, this.numberOf(id) - 1, index)) this.onChange({ type: 'move' });
   }
 
   /** @param {number} id */
   remove(id) {
     const index = this.pages.findIndex((p) => p.id === id);
     if (index < 0) return;
-    URL.revokeObjectURL(this.pages[index].url);
-    URL.revokeObjectURL(this.pages[index].beforeUrl);
+    this.revoke(this.pages[index]);
     this.pages.splice(index, 1);
-    this.onChange();
+    this.onChange({ type: 'remove', id });
   }
+
+  /** @param {Page} page */
+  revoke(page) {
+    URL.revokeObjectURL(page.url);
+    URL.revokeObjectURL(page.beforeUrl);
+  }
+}
+
+/**
+ * The page as saved, without its object URLs.
+ * @param {Page} page
+ * @returns {PageRecord}
+ */
+export function toRecord({ url, beforeUrl, ...record }) {
+  return record;
 }

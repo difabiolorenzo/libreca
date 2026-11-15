@@ -84,10 +84,10 @@
 - [x] Correction de courbure simple (lignes de texte)
 - [x] Écran de revue de page (maquette « 2 · Revue de page ») : comparateur avant/après (`input type="range"` étiqueté, flèches du clavier), pastilles des corrections appliquées, boutons Reprendre / Valider
 - [x] Chaque correction nommée et annulable (pastille-bouton)
-- [ ] Écran livre (maquette « 3 · Livre & export PDF ») : couverture, titre, nombre de pages, grille de vignettes
-- [ ] Réordonner les pages par glisser-déposer ET boutons Monter / Descendre ; supprimer, reprendre une page
-- [ ] Bibliothèque : liste des livres en cours, créer un livre, supprimer (action `danger` avec confirmation)
-- [ ] Sauvegarde du projet en cours (IndexedDB)
+- [x] Écran livre (maquette « 3 · Livre & export PDF ») : couverture, titre, nombre de pages, grille de vignettes
+- [x] Réordonner les pages par glisser-déposer ET boutons Monter / Descendre ; supprimer, reprendre une page
+- [x] Bibliothèque : liste des livres en cours, créer un livre, supprimer (action `danger` avec confirmation)
+- [x] Sauvegarde du projet en cours (IndexedDB)
 
 ### v0.4 — Doigts (IA optionnelle)
 - [ ] Détection des mains (MediaPipe)

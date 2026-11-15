@@ -29,18 +29,13 @@
       </header>
       <p class="tagline" data-i18n="app.tagline"></p>
 
-      <article class="book-card card" aria-labelledby="library-book-title">
-        <div id="library-cover" class="book-cover"></div>
-        <div class="book-card-body">
-          <h2 id="library-book-title" class="book-title" data-book-title></h2>
-          <p id="library-book-meta" class="meta"></p>
-          <a id="library-open" class="btn btn-secondary" href="#/book" hidden><span data-icon="book"></span><span data-i18n="library.open"></span></a>
-        </div>
-      </article>
-
-      <div class="screen-actions">
-        <a class="btn btn-accent" href="#/capture"><span data-icon="camera"></span><span data-i18n="library.scan"></span></a>
+      <div class="section-head">
+        <h2 class="label" data-i18n="library.books"></h2>
+        <button id="library-new" type="button" class="btn btn-accent"><span data-icon="plus"></span><span data-i18n="library.new"></span></button>
       </div>
+      <p id="library-none" class="meta" data-i18n="library.none" hidden></p>
+      <ul id="library-list" class="book-list"></ul>
+      <output id="save-status" class="status" aria-live="polite"></output>
 
       <p class="privacy"><span data-icon="lock"></span><span data-i18n="app.privacy"></span></p>
     </section>
@@ -88,14 +83,22 @@
         <a class="btn btn-secondary btn-icon" href="#/" data-i18n-attr="aria-label:nav.back;title:nav.back"><span data-icon="back"></span></a>
         <button type="button" class="btn btn-secondary btn-icon" data-action="settings" data-i18n-attr="aria-label:settings.title;title:settings.title"><span data-icon="settings"></span></button>
       </div>
-      <div class="title-row">
-        <h1 id="book-title" class="book-title screen-title" tabindex="-1" data-book-title></h1>
-        <button id="book-rename" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:book.rename;title:book.rename"><span data-icon="edit"></span></button>
+      <div class="book-hero">
+        <div id="book-cover" class="book-cover"></div>
+        <div class="book-hero-body">
+          <div class="title-row">
+            <h1 id="book-title" class="book-title screen-title" tabindex="-1" data-book-title></h1>
+            <button id="book-rename" type="button" class="btn btn-secondary btn-icon" data-i18n-attr="aria-label:book.rename;title:book.rename"><span data-icon="edit"></span></button>
+          </div>
+          <p id="book-meta" class="meta"></p>
+        </div>
       </div>
-      <p id="book-meta" class="meta"></p>
       <div class="section-head">
         <h2 class="label" data-i18n="pages.title"></h2>
-        <a class="btn btn-secondary" href="#/capture"><span data-icon="camera"></span><span data-i18n="book.capture"></span></a>
+        <div class="btn-row">
+          <button id="book-organize" type="button" class="btn btn-secondary" aria-pressed="false" data-i18n-attr="title:book.organizeHelp"><span data-icon="edit"></span><span data-i18n="book.organize"></span></button>
+          <a class="btn btn-secondary" href="#/capture"><span data-icon="camera"></span><span data-i18n="book.capture"></span></a>
+        </div>
       </div>
       <ol id="page-list" class="pages"></ol>
       <section class="card export-panel" aria-labelledby="export-title">

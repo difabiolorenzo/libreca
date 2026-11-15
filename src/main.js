@@ -25,12 +25,16 @@ import { CORRECTIONS, DEFAULT_CORRECTIONS } from './pipeline/enhance.js';
 import { COLOR_MODES } from './pipeline/clean.js';
 import { Announcer } from './ui/announcer.js';
 import { CornerEditor } from './ui/corner-editor.js';
-import { PageList } from './ui/page-list.js';
+import { PageList, toRecord } from './ui/page-list.js';
 import { createPageThumb } from './ui/page-thumb.js';
 import { Screens } from './ui/screens.js';
 import { applyIcons, createIcon } from './ui/icons.js';
 import { setChip } from './ui/status-chip.js';
 import { buildPdf } from './export/pdf.js';
+import {
+  listBooks, getBook, createBook, saveBook, deleteBook, loadPages, coverOf, savePage, deletePage, persistStorage,
+} from './lib/store.js';
+import { enableDragReorder } from './ui/reorder.js';
 
 /** @typedef {import('./ui/page-list.js').Page} Page */
 /** @typedef {'ok' | 'warning' | 'error' | ''} State */
@@ -517,28 +521,288 @@ function initCapture() {
   });
 }
 
-// --- Drawing the book on every screen --------------------------------------
+// --- The open book: saved on this device -------------------------------------
 
-/** Title chosen by the user, '' until renamed (kept in memory, like the pages). */
-let bookTitle = '';
+/** @type {import('./lib/store.js').BookRecord | null} the open book */
+let book = null;
+
+/** Title of the open book, '' until renamed. */
+const bookTitle = () => book?.title ?? '';
+
+/** Saves run one after the other, in the order of the changes. */
+let saving = Promise.resolve();
+
+/** @param {() => Promise<unknown>} task */
+function save(task) {
+  saving = saving.then(task).then(() => {}, (error) => {
+    setStatus($('save-status'), 'library.saveFailed', { error: String(error) }, 'error');
+  });
+  return saving;
+}
+
+/** Save the open book's title, page order and next page id. */
+function saveBookRecord() {
+  if (!book) return;
+  book.order = pages.pages.map((p) => p.id);
+  book.nextId = pages.nextId;
+  book.updated = Date.now();
+  const record = { ...book, order: [...book.order] };
+  save(() => saveBook(record));
+}
+
+/** @param {import('./ui/page-list.js').PageChange} change */
+function onPagesChange(change) {
+  renderBook();
+  if (!book || change.type === 'load') return;
+  const bookId = book.id;
+  if (change.type === 'add' || change.type === 'update') {
+    const record = toRecord(change.page);
+    save(() => savePage(bookId, record));
+  } else if (change.type === 'remove') {
+    const { id } = change;
+    save(() => deletePage(bookId, id));
+  }
+  saveBookRecord();
+}
+
+/**
+ * Open a saved book (its pages are loaded into memory).
+ * @param {number} id
+ * @returns {Promise<boolean>} false if it does not exist
+ */
+async function openBook(id) {
+  if (book?.id === id) return true;
+  await saving;
+  const found = id ? await getBook(id) : undefined;
+  if (!found) return false;
+  book = found;
+  setSetting('bookId', id);
+  pages.load(await loadPages(found), found.nextId);
+  return true;
+}
+
+/** @returns {Promise<void>} a book is open (a new one if needed) */
+async function ensureBook() {
+  if (book) return;
+  const created = await createBook();
+  persistStorage();
+  await openBook(created.id);
+}
+
+function closeBook() {
+  book = null;
+  setSetting('bookId', 0);
+  pages.load([], 1);
+}
 
 function onRename() {
-  const title = globalThis.prompt(t('book.renamePrompt'), bookTitle || t('book.untitled'));
+  if (!book) return;
+  const title = globalThis.prompt(t('book.renamePrompt'), bookTitle() || t('book.untitled'));
   if (title === null) return;
-  bookTitle = title.trim();
+  book.title = title.trim();
   renderBook();
+  saveBookRecord();
+}
+
+// --- Library: the saved books -------------------------------------------------
+
+/** Object URLs of the covers shown, revoked on the next drawing. */
+let coverUrls = /** @type {string[]} */ ([]);
+let libraryDrawing = 0;
+
+/**
+ * @param {Blob | null} image
+ * @returns {HTMLElement}
+ */
+function coverFor(image) {
+  const cover = document.createElement('div');
+  cover.className = 'book-cover';
+  if (image) {
+    const img = document.createElement('img');
+    img.src = URL.createObjectURL(image);
+    img.alt = '';
+    coverUrls.push(img.src);
+    cover.append(img);
+  } else {
+    cover.append(createIcon('book'));
+  }
+  return cover;
+}
+
+/**
+ * @param {string} text
+ * @param {string} [className]
+ */
+function span(text, className = '') {
+  const el = document.createElement('span');
+  el.textContent = text;
+  if (className) el.className = className;
+  return el;
+}
+
+/**
+ * @param {import('./lib/store.js').BookRecord} record
+ * @param {Blob | null} cover
+ */
+function bookCard(record, cover) {
+  const item = document.createElement('li');
+  const card = document.createElement('article');
+  card.className = 'book-card card';
+  const titleId = `library-book-${record.id}`;
+  card.setAttribute('aria-labelledby', titleId);
+  const body = document.createElement('div');
+  body.className = 'book-card-body';
+  const title = document.createElement('h3');
+  title.id = titleId;
+  title.className = 'book-title';
+  title.textContent = record.title || t('book.untitled');
+  const meta = document.createElement('p');
+  meta.className = 'meta';
+  meta.textContent = record.order.length ? pageCount(record.order.length) : t('library.empty');
+  const actions = document.createElement('div');
+  actions.className = 'btn-row';
+  const open = document.createElement('a');
+  open.className = 'btn btn-secondary';
+  open.href = `#/book/${record.id}`;
+  open.append(createIcon('book'), span(t('library.open')));
+  const label = t('library.delete', { title: title.textContent });
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'btn btn-secondary btn-icon btn-danger';
+  remove.dataset.deleteBook = String(record.id);
+  remove.setAttribute('aria-label', label);
+  remove.title = label;
+  remove.append(createIcon('trash'));
+  actions.append(open, remove);
+  body.append(title, meta, actions);
+  card.append(coverFor(cover), body);
+  item.append(card);
+  return item;
+}
+
+async function renderLibrary() {
+  const drawing = ++libraryDrawing;
+  await saving;
+  const books = await listBooks();
+  const covers = await Promise.all(books.map(coverOf));
+  if (drawing !== libraryDrawing) return;
+  for (const url of coverUrls) URL.revokeObjectURL(url);
+  coverUrls = [];
+  $('library-list').replaceChildren(...books.map((record, i) => bookCard(record, covers[i])));
+  $('library-none').hidden = books.length > 0;
+}
+
+async function onNewBook() {
+  await saving;
+  closeBook();
+  await ensureBook();
+  screens.go('capture');
+}
+
+/** @param {MouseEvent} event */
+async function onLibraryClick(event) {
+  const button = /** @type {HTMLElement} */ (event.target).closest?.('[data-delete-book]');
+  if (!button) return;
+  const id = Number(button.getAttribute('data-delete-book'));
+  const record = await getBook(id);
+  if (!record) return;
+  const title = record.title || t('book.untitled');
+  if (!globalThis.confirm(t('library.confirmDelete', { title, pages: pageCount(record.order.length) }))) return;
+  await saving;
+  if (book?.id === id) closeBook();
+  await deleteBook(id);
+  announcer.say(t('library.deleted', { title }), { force: true });
+  renderLibrary();
+}
+
+// --- Drawing the book on every screen --------------------------------------
+
+/** Book screen: show the Up / Down / Retake / Delete buttons of each page. */
+let organizing = false;
+
+/**
+ * @param {import('./ui/icons.js').IconName} icon
+ * @param {string} label
+ * @param {string} action
+ * @param {boolean} [disabled]
+ */
+function pageButton(icon, label, action, disabled = false) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `btn btn-secondary btn-icon${action === 'delete' ? ' btn-danger' : ''}`;
+  button.dataset.pageAction = action;
+  button.setAttribute('aria-label', label);
+  button.title = label;
+  button.disabled = disabled;
+  button.append(createIcon(icon));
+  return button;
 }
 
 /**
  * @param {Page} page
  * @param {boolean} current
+ * @param {boolean} [tools] book screen: draggable, with the organize buttons
  */
-function thumbFor(page, current) {
-  const thumb = createPageThumb({ url: page.url, number: pages.numberOf(page.id), retake: !page.detected, current });
+function thumbFor(page, current, tools = false) {
+  const number = pages.numberOf(page.id);
+  const thumb = createPageThumb({ url: page.url, number, retake: !page.detected, current });
   thumb.addEventListener('click', () => screens.go(`page/${page.id}`));
   const item = document.createElement('li');
+  item.dataset.id = String(page.id);
   item.append(thumb);
+  if (tools && organizing) {
+    thumb.dataset.drag = '';
+    const row = document.createElement('div');
+    row.className = 'page-tools';
+    row.append(
+      pageButton('chevron-up', t('book.moveUp', { number }), 'up', number === 1),
+      pageButton('chevron-down', t('book.moveDown', { number }), 'down', number === pages.pages.length),
+      pageButton('retake', t('book.retakePage', { number }), 'retake'),
+      pageButton('trash', t('book.deletePage', { number }), 'delete'),
+    );
+    item.append(row);
+  }
   return item;
+}
+
+/**
+ * @param {number} id
+ * @param {number} index new 0-based position
+ */
+function movePage(id, index) {
+  const from = pages.numberOf(id);
+  pages.move(id, index);
+  const to = pages.numberOf(id);
+  if (to !== from) announcer.say(t('book.moved', { from, to }), { force: true });
+}
+
+/** @param {MouseEvent} event */
+function onPageTool(event) {
+  const button = /** @type {HTMLElement} */ (event.target).closest?.('[data-page-action]');
+  if (!button) return;
+  const id = Number(button.closest('li')?.dataset.id);
+  const number = pages.numberOf(id);
+  if (!number) return;
+  const action = button.getAttribute('data-page-action');
+  if (action === 'up' || action === 'down') {
+    movePage(id, number - 1 + (action === 'up' ? -1 : 1));
+    // Keep the focus on the same button of the moved page.
+    const item = $('page-list').querySelector(`li[data-id="${id}"]`);
+    const same = item?.querySelector(`[data-page-action="${action}"]`);
+    (same && !same.disabled ? same : item?.querySelector('[data-page-action]:not(:disabled)'))?.focus();
+  } else if (action === 'retake') {
+    retakePage(id);
+  } else if (action === 'delete') {
+    deletePageAsked(id);
+  }
+}
+
+/** @param {boolean} on */
+function setOrganizing(on) {
+  organizing = on;
+  $('book-organize').setAttribute('aria-pressed', String(on));
+  $('page-list').classList.toggle('is-organizing', on);
+  renderBook();
 }
 
 function renderBook() {
@@ -546,10 +810,10 @@ function renderBook() {
   const count = list.length;
   const last = list.at(-1);
 
-  for (const el of document.querySelectorAll('[data-book-title]')) el.textContent = bookTitle || t('book.untitled');
+  for (const el of document.querySelectorAll('[data-book-title]')) el.textContent = bookTitle() || t('book.untitled');
 
-  // Library card.
-  const cover = $('library-cover');
+  // Book screen.
+  const cover = $('book-cover');
   if (list[0]) {
     const img = document.createElement('img');
     img.src = list[0].url;
@@ -558,18 +822,15 @@ function renderBook() {
   } else {
     cover.replaceChildren(createIcon('book'));
   }
-  $('library-book-meta').textContent = count ? pageCount(count) : t('library.empty');
-  $('library-open').hidden = count === 0;
-
-  // Book screen.
   $('book-meta').textContent = pageCount(count);
+  $('book-organize').hidden = count === 0;
   if (count === 0) {
     const empty = document.createElement('li');
     empty.className = 'empty';
     empty.textContent = t('pages.empty');
     $('page-list').replaceChildren(empty);
   } else {
-    $('page-list').replaceChildren(...list.map((page) => thumbFor(page, page === last)));
+    $('page-list').replaceChildren(...list.map((page) => thumbFor(page, page === last, true)));
   }
   $('export-pdf').disabled = count === 0;
 
@@ -694,10 +955,13 @@ function onCorrectionClick(event) {
 }
 
 /** Take this page again: the next capture replaces it. */
-function onRetake() {
-  const number = pages.numberOf(reviewId);
+const onRetake = () => retakePage(reviewId);
+
+/** @param {number} id */
+function retakePage(id) {
+  const number = pages.numberOf(id);
   if (!number) return;
-  retakeId = reviewId;
+  retakeId = id;
   screens.go('capture');
   announcer.say(t('review.retakeHint', { number }), { force: true });
 }
@@ -752,11 +1016,20 @@ async function onAdjust() {
   }
 }
 
+/**
+ * @param {number} id
+ * @returns {boolean} true if deleted
+ */
+function deletePageAsked(id) {
+  const number = pages.numberOf(id);
+  if (!number || !globalThis.confirm(t('review.confirmDelete', { number }))) return false;
+  pages.remove(id);
+  announcer.say(t('book.deleted', { number }), { force: true });
+  return true;
+}
+
 function onDelete() {
-  const number = pages.numberOf(reviewId);
-  if (!number || !globalThis.confirm(t('review.confirmDelete', { number }))) return;
-  pages.remove(reviewId);
-  screens.go('book');
+  if (deletePageAsked(reviewId)) screens.go('book');
 }
 
 function initReview() {
@@ -806,7 +1079,7 @@ async function onExport() {
     const jpegs = await Promise.all(pages.pages.map(async (p) => new Uint8Array(await p.image.arrayBuffer())));
     const pdf = buildPdf(jpegs);
     const date = new Date().toISOString().slice(0, 10);
-    download(new Blob([pdf], { type: 'application/pdf' }), `${fileStem(bookTitle) || 'libreca'}-${date}.pdf`);
+    download(new Blob([pdf], { type: 'application/pdf' }), `${fileStem(bookTitle()) || 'libreca'}-${date}.pdf`);
     setStatus(status, 'pages.exported', { pages: pageCount(jpegs.length) }, 'ok');
   } catch (error) {
     setStatus(status, 'pages.exportFailed', { error: String(error) }, 'error');
@@ -833,7 +1106,7 @@ async function main() {
   const lang = getSetting('language', matchLanguage(navigator.languages ?? []));
   await setLanguage(lang);
 
-  pages = new PageList(renderBook);
+  pages = new PageList(onPagesChange);
   announcer = new Announcer($('announcer'));
   initLanguageSelect();
   initThemeSelect();
@@ -844,10 +1117,31 @@ async function main() {
   initReview();
   $('export-pdf').addEventListener('click', onExport);
   $('book-rename').addEventListener('click', onRename);
+  $('book-organize').addEventListener('click', () => setOrganizing(!organizing));
+  $('page-list').addEventListener('click', onPageTool);
+  enableDragReorder($('page-list'), movePage);
+  $('library-new').addEventListener('click', () => onNewBook().catch((error) => {
+    setStatus($('save-status'), 'library.saveFailed', { error: String(error) }, 'error');
+  }));
+  $('library-list').addEventListener('click', onLibraryClick);
 
   screens = new Screens(document, {
+    library: { enter: () => { renderLibrary(); } },
+    book: {
+      enter: (param) => {
+        const id = Number(param);
+        if (id && id !== book?.id) {
+          openBook(id).then((ok) => { if (!ok) screens.go(''); });
+          return true;
+        }
+        return book !== null;
+      },
+      leave: () => {
+        if (organizing) setOrganizing(false);
+      },
+    },
     capture: {
-      enter: () => { startCapture(); },
+      enter: () => { ensureBook().then(startCapture); },
       leave: () => {
         stopCapture();
         retakeId = 0;
@@ -867,9 +1161,12 @@ async function main() {
     fillThemeSelect();
     fillColorSelect($('color-select'), defaultColorMode());
     renderBook();
+    if (document.body.dataset.screen === 'library') renderLibrary();
     refreshCameraList().catch(() => {});
   });
 
+  const saved = Number(getSetting('bookId', 0));
+  if (saved) await openBook(saved).catch(() => false);
   renderBook();
   screens.route();
   checkSecureContext();
