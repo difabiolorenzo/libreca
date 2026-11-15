@@ -392,8 +392,9 @@ input[type="text"] {
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
   font: var(--text-caption);
+  /* Over the photo, light text on a dark scrim in both themes (class theme-nuit). */
   background: var(--scrim);
-  color: var(--ink-inverse);
+  color: var(--ink);
 }
 
 .compare-tag-before { left: var(--space-3); }
@@ -739,6 +740,14 @@ input[type="text"] {
 }
 
 .corner-stage .handle:active { cursor: grabbing; }
+
+/* Corner chosen for the next tap on the photo: filled centre. */
+.corner-stage .handle.is-active::after {
+  width: 14px;
+  height: 14px;
+}
+
+.corner-stage { cursor: crosshair; }
 
 .corner-stage .handle:focus-visible {
   outline: 2px solid var(--focus);

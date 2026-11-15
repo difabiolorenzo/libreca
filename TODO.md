@@ -95,7 +95,7 @@
 - [x] PDF accessible : langue du document déclarée, titre dans les métadonnées, ordre de lecture correct — `/Lang`, `DisplayDocTitle` ; avec « Texte sélectionnable » : PDF balisé (paragraphes dans l'ordre de lecture, image de page en décoration, page sans texte en figure avec texte de remplacement)
 - [ ] Feuille d'export : bouton accent « Créer le PDF »
 - [x] PWA hors ligne (service worker), icônes d'app et manifeste aux couleurs du logo — service worker (`sw.js` : fichiers toujours à jour, copie hors ligne), `manifest.webmanifest` (installable, fond Papier), icônes PNG 192, 512, « maskable » 512 et Apple 180 dans `src/assets/`, produites depuis les SVG par `tools/icons.html`
-- [ ] Audit d'accessibilité WCAG 2.2 AA (clavier, lecteur d'écran, contrastes dans les deux thèmes)
+- [x] Audit d'accessibilité WCAG 2.2 AA (clavier, lecteur d'écran, contrastes dans les deux thèmes) — analyse de tous les écrans et dialogues dans les deux thèmes (`tools/a11y-check.js` : contraste rendu, noms accessibles, cibles de 24 px, identifiants), clavier, largeur de 320 px ; corrigé : étiquettes « Avant / Après » illisibles en Nuit (1,0:1 → 8,9:1), boutons de la revue de page qui débordaient sur petit écran, placement des coins sans glisser (toucher un coin puis l'endroit, 2.5.7), position des coins annoncée, titre de l'onglet propre à chaque écran (2.4.2) ; reste à faire : essai avec un vrai lecteur d'écran (NVDA, TalkBack)
 
 ### v0.5 — Doigts (IA optionnelle)
 - [ ] Détection des mains (MediaPipe)

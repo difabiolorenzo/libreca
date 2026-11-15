@@ -77,11 +77,12 @@
 }
 
 /* On phones, the buttons of a pair share the width (main action last). */
-.btn-pair { display: flex; gap: var(--space-3); }
+/* Wraps when the buttons do not fit (narrow screen, large text): no sideways scrolling. */
+.btn-pair { display: flex; flex-wrap: wrap; gap: var(--space-3); }
 
 @media (max-width: 599px) {
   .btn-pair { flex: 1 1 100%; }
-  .btn-pair > .btn { flex: 1; }
+  .btn-pair > .btn { flex: 1 1 auto; } /* own width first, so they wrap instead of squeezing */
 }
 
 /*

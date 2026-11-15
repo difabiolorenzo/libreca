@@ -4,6 +4,9 @@
  * Android back buttons work.
  */
 
+/** Name of the app (a brand: not translated). */
+const APP_NAME = 'Libreca';
+
 /**
  * @typedef {object} ScreenHooks
  * @property {(param: string) => boolean | void} [enter] called when shown;
@@ -46,11 +49,23 @@ export class Screens {
     document.body.dataset.screen = target;
     const first = this.current === '';
     this.current = target;
+    this.updateTitle();
     // Move focus to the screen title so screen readers announce the change.
     if (!first) {
       screen.querySelector('h1')?.focus({ preventScroll: true });
       globalThis.scrollTo(0, 0);
     }
+  }
+
+  /**
+   * Tab title (WCAG 2.4.2): the heading of the screen, then the app name;
+   * the app name alone on the home screen. Call it again when the heading
+   * changes (book renamed, other page, other language).
+   */
+  updateTitle() {
+    const heading = this.current && this.current !== this.home
+      ? this.screens.get(this.current)?.querySelector('h1')?.textContent?.trim() : '';
+    document.title = heading ? `${heading} · ${APP_NAME}` : APP_NAME;
   }
 
   /** @param {string} path e.g. 'book', 'page/3', '' for home */

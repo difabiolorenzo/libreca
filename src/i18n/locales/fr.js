@@ -177,7 +177,8 @@ export default {
   },
   corners: {
     title: 'Ajuster les coins',
-    help: 'Faites glisser les quatre coins sur les bords de la page. Au clavier : flèches (Maj pour aller plus vite).',
+    help: 'Faites glisser les quatre coins sur les bords de la page, ou touchez un coin puis l\'endroit où le placer. Au clavier : flèches (Maj pour aller plus vite).',
+    position: '{name}, à {x} % de la largeur et {y} % de la hauteur',
     topLeft: 'Coin haut gauche',
     topRight: 'Coin haut droit',
     bottomRight: 'Coin bas droit',

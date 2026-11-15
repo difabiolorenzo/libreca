@@ -1,15 +1,21 @@
 /**
  * Manual corner adjustment (fallback when detection is wrong): shows the
  * captured photo in a dialog with four draggable handles. Works with mouse,
- * touch and keyboard (arrow keys move the focused corner).
+ * touch and keyboard (arrow keys move the focused corner). Without dragging
+ * (WCAG 2.5.7): tap a corner to choose it, then tap the photo where it goes;
+ * before any choice, the tap moves the nearest corner.
  */
 
 import { FULL_QUAD, clamp01, orderCorners } from '../pipeline/geometry.js';
+import { t } from '../i18n/i18n.js';
 
 /** @typedef {import('../pipeline/geometry.js').Point} Point */
 /** @typedef {import('../pipeline/geometry.js').Quad} Quad */
 
 const KEY_STEP = 0.005;
+
+/** Translation keys of the handles, in their order in the dialog. */
+const CORNER_NAMES = ['corners.topLeft', 'corners.topRight', 'corners.bottomRight', 'corners.bottomLeft'];
 
 export class CornerEditor {
   /** @param {HTMLDialogElement} dialog */
@@ -26,8 +32,11 @@ export class CornerEditor {
     /** @type {((quad: Quad | null) => void) | null} */
     this.resolve = null;
     this.url = '';
+    /** @type {number} corner chosen for a tap on the photo, -1: the nearest */
+    this.active = -1;
 
     this.handles.forEach((handle, i) => this.bindHandle(handle, i));
+    this.stage.addEventListener('pointerdown', (event) => this.onStageTap(event));
     dialog.addEventListener('click', (event) => {
       const action = /** @type {HTMLElement} */ (event.target).closest('[data-action]')?.getAttribute('data-action');
       if (action === 'reset') this.setPoints(FULL_QUAD);
@@ -54,6 +63,7 @@ export class CornerEditor {
     this.result = null;
     this.setPoints(quad);
     this.dialog.showModal();
+    this.setActive(-1); // the dialog's initial focus on a handle is not a choice
     return new Promise((resolve) => { this.resolve = resolve; });
   }
 
@@ -71,8 +81,13 @@ export class CornerEditor {
 
   render() {
     this.points.forEach((p, i) => {
-      this.handles[i].style.left = `${p.x * 100}%`;
-      this.handles[i].style.top = `${p.y * 100}%`;
+      const handle = this.handles[i];
+      handle.style.left = `${p.x * 100}%`;
+      handle.style.top = `${p.y * 100}%`;
+      // The position is part of the name, for screen readers.
+      handle.setAttribute('aria-label', t('corners.position', {
+        name: t(CORNER_NAMES[i]), x: Math.round(p.x * 100), y: Math.round(p.y * 100),
+      }));
     });
     this.polygon.setAttribute('points', this.points.map((p) => `${p.x * 100},${p.y * 100}`).join(' '));
   }
@@ -94,9 +109,12 @@ export class CornerEditor {
     };
     handle.addEventListener('pointerdown', (event) => {
       event.preventDefault();
+      event.stopPropagation(); // not a tap on the photo
       handle.focus();
+      this.setActive(index);
       handle.setPointerCapture(event.pointerId);
     });
+    handle.addEventListener('focus', () => this.setActive(index));
     handle.addEventListener('pointermove', move);
     handle.addEventListener('keydown', (event) => {
       const step = event.shiftKey ? KEY_STEP * 5 : KEY_STEP;
@@ -110,4 +128,40 @@ export class CornerEditor {
       this.render();
     });
   }
+
+  /** @param {number} index corner chosen for the next tap on the photo, -1 for none */
+  setActive(index) {
+    this.active = index;
+    this.handles.forEach((h, i) => h.classList.toggle('is-active', i === index));
+  }
+
+  /**
+   * A tap on the photo (not on a handle) places the chosen corner there,
+   * or the nearest one when none was chosen.
+   * @param {PointerEvent} event
+   */
+  onStageTap(event) {
+    if (event.button > 0) return;
+    const rect = this.stage.getBoundingClientRect();
+    const point = { x: clamp01((event.clientX - rect.left) / rect.width), y: clamp01((event.clientY - rect.top) / rect.height) };
+    const chosen = this.active;
+    const index = chosen >= 0 ? chosen : nearestCorner(this.points, point);
+    this.points[index] = point;
+    this.render();
+    this.handles[index].focus({ preventScroll: true }); // arrow keys can fine-tune it
+    this.setActive(chosen); // that focus is not a choice
+  }
+}
+
+/**
+ * Index of the point closest to p.
+ * @param {readonly Point[]} points
+ * @param {Point} p
+ */
+export function nearestCorner(points, p) {
+  let best = 0;
+  points.forEach((q, i) => {
+    if (Math.hypot(q.x - p.x, q.y - p.y) < Math.hypot(points[best].x - p.x, points[best].y - p.y)) best = i;
+  });
+  return best;
 }

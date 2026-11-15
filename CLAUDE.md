@@ -45,6 +45,7 @@ Application (PWA) qui numérise un livre papier avec une caméra et produit un P
 | `src/ui/` | Composants d'interface : `screens.js` (écrans et navigation par adresse `#/…`), `icons.js` (jeu d'icônes maison, `data-icon`), `status-chip.js` (pastille d'état), `page-thumb.js` (vignette de page), `page-list.js` (pages du livre ouvert, sans affichage : image redressée, corrections, image finale ; signale chaque changement pour la sauvegarde), `reorder.js` (glisser-déposer à la souris ou au doigt), `corner-editor.js` (ajustement manuel des coins), `announcer.js` (annonces `aria-live` pour les lecteurs d'écran) |
 | `tools/serve.mjs` | Serveur de développement sans dépendance (HTTP local, HTTPS sur le réseau local) |
 | `tools/icons.html` | Outil de développement : produit les icônes PNG depuis les SVG de `src/assets/` (à refaire si une icône change) |
+| `tools/a11y-check.js` | Outil de développement : vérifications d'accessibilité de l'écran affiché (contraste, noms accessibles, taille des cibles, identifiants), depuis la console |
 | `tests/` | Tests `node:test` ; `tests/helpers/` (OpenCV.js dans Node, images de synthèse) ; `tests/fixtures/` : photos de livres de référence et résultats attendus |
 
 Mettre ce tableau à jour quand la structure change.

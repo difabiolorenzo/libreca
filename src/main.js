@@ -827,6 +827,7 @@ function renderBook() {
   const last = list.at(-1);
 
   for (const el of document.querySelectorAll('[data-book-title]')) el.textContent = bookTitle() || t('book.untitled');
+  screens?.updateTitle();
 
   // Book screen.
   const cover = $('book-cover');
@@ -877,6 +878,7 @@ function renderReview() {
   if (!page) return false;
   const number = pages.numberOf(page.id);
   $('review-title').textContent = t('review.title', { number, count: pages.pages.length });
+  screens?.updateTitle();
   const img = $('review-image');
   img.src = page.url;
   img.alt = t('review.image', { number });
