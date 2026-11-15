@@ -61,3 +61,15 @@ test('refineQuad recovers a corner hidden on the outline', () => {
   assert.ok(Math.hypot(refined[3].x, refined[3].y - 100) < 1, JSON.stringify(refined[3]));
   assert.ok(Math.hypot(refined[2].x - 100, refined[2].y - 100) < 1);
 });
+
+test('viewfinderCorners draws short brackets along both sides of each corner', async () => {
+  const { viewfinderCorners } = await import('../src/pipeline/geometry.js');
+  const square = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }];
+  const [tl, tr] = viewfinderCorners(square, { ratio: 0.2 });
+  assert.deepEqual(tl, [{ x: 0, y: 20 }, { x: 0, y: 0 }, { x: 20, y: 0 }]);
+  assert.deepEqual(tr, [{ x: 80, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 20 }]);
+  const capped = viewfinderCorners(square, { ratio: 0.5, maxLength: 10 })[0];
+  assert.deepEqual(capped[2], { x: 10, y: 0 });
+  const spread = viewfinderCorners(square, { spread: 1.2 })[0][1];
+  assert.deepEqual(spread, { x: -10, y: -10 });
+});

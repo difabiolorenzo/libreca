@@ -32,6 +32,7 @@ const MIME = {
   '.jpeg': 'image/jpeg',
   '.webp': 'image/webp',
   '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
   '.wasm': 'application/wasm',
   '.onnx': 'application/octet-stream',
   '.md': 'text/plain; charset=utf-8',

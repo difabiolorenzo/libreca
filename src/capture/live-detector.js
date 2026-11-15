@@ -1,34 +1,50 @@
 /**
  * Live page detection over the camera preview. Sends small frames to the
  * OpenCV worker (one request at a time, so the preview never waits) and
- * draws the detected page on a canvas laid over the video.
+ * draws viewfinder corners on the detected page, on a canvas laid over the
+ * video. When a page appears, the corners close in on it.
  */
 
 import { grabFrame } from '../lib/image.js';
+import { viewfinderCorners } from '../pipeline/geometry.js';
 
 /** @typedef {import('../pipeline/geometry.js').Quad} Quad */
 
 /** Frames without a page before the outline disappears. */
 const MAX_MISSES = 3;
 
+/**
+ * When a page appears, the corners close in on it (200 ms). With reduced
+ * motion, they fade in on the spot instead (100 ms).
+ */
+const CLOSE_IN_MS = 200;
+const CLOSE_IN_SPREAD = 1.12;
+const FADE_IN_MS = 100;
+
 export class LiveDetector {
   /**
    * @param {HTMLVideoElement} video
    * @param {HTMLCanvasElement} overlay canvas covering the video
    * @param {(image: ImageData) => Promise<Quad | null>} detect
-   * @param {{ maxSide?: number, interval?: number }} [options] frame size, ms between frames
+   * @param {{ maxSide?: number, interval?: number, onDetect?: (found: boolean) => void }} [options]
+   *   frame size, ms between frames, called when a page appears or disappears
    */
-  constructor(video, overlay, detect, { maxSide = 480, interval = 120 } = {}) {
+  constructor(video, overlay, detect, { maxSide = 480, interval = 120, onDetect } = {}) {
     this.video = video;
     this.overlay = overlay;
     this.detect = detect;
     this.maxSide = maxSide;
     this.interval = interval;
+    this.onDetect = onDetect;
     this.frameCanvas = document.createElement('canvas');
     /** @type {Quad | null} last detected page (normalized), smoothed */
     this.quad = null;
     this.misses = 0;
     this.running = false;
+    this.found = false;
+    /** time the current page appeared, for the closing-in animation */
+    this.appearedAt = 0;
+    this.animating = false;
     /** @type {ReturnType<typeof setTimeout> | undefined} */
     this.timer = undefined;
   }
@@ -45,6 +61,15 @@ export class LiveDetector {
     this.quad = null;
     this.misses = 0;
     this.draw();
+    this.notify();
+  }
+
+  /** Report a change between "page found" and "no page". */
+  notify() {
+    const found = this.quad !== null;
+    if (found === this.found) return;
+    this.found = found;
+    this.onDetect?.(found);
   }
 
   async tick() {
@@ -65,6 +90,7 @@ export class LiveDetector {
 
   /** @param {Quad | null} found */
   update(found) {
+    if (found && !this.quad) this.appearedAt = performance.now();
     if (found) {
       // Smooth small jitter between frames.
       const prev = this.quad;
@@ -79,6 +105,7 @@ export class LiveDetector {
       this.quad = null;
     }
     this.draw();
+    this.notify();
   }
 
   draw() {
@@ -99,17 +126,42 @@ export class LiveDetector {
     const boxH = videoHeight * scale;
     const left = (width - boxW) / 2;
     const top = (height - boxH) / 2;
-    const color = getComputedStyle(canvas).getPropertyValue('--accent').trim() || '#b5562b';
+    const color = getComputedStyle(canvas).getPropertyValue('--detect').trim() || '#7DD3A8';
+    const reduced = this.reducedMotion();
+    const progress = Math.min(1, (performance.now() - this.appearedAt) / (reduced ? FADE_IN_MS : CLOSE_IN_MS));
+    const eased = reduced ? 1 : 1 - (1 - progress) ** 3;
+    const points = this.quad.map((p) => ({ x: left + p.x * boxW, y: top + p.y * boxH }));
     ctx.beginPath();
-    this.quad.forEach((p, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, left + p.x * boxW, top + p.y * boxH));
-    ctx.closePath();
-    ctx.globalAlpha = 0.2;
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.lineWidth = 3 * dpr;
+    for (const [a, corner, b] of viewfinderCorners(points, {
+      spread: 1 + (CLOSE_IN_SPREAD - 1) * (1 - eased),
+      ratio: 0.18,
+      maxLength: 40 * dpr,
+    })) {
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(corner.x, corner.y);
+      ctx.lineTo(b.x, b.y);
+    }
+    ctx.lineWidth = 4 * dpr;
+    ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = color;
+    ctx.globalAlpha = reduced ? progress : 1;
     ctx.stroke();
+    ctx.globalAlpha = 1;
+    if (progress < 1) this.animate();
+  }
+
+  /** Redraw on every frame until the closing-in animation ends. */
+  animate() {
+    if (this.animating) return;
+    this.animating = true;
+    requestAnimationFrame(() => {
+      this.animating = false;
+      this.draw();
+    });
+  }
+
+  reducedMotion() {
+    return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
   }
 }

@@ -81,3 +81,4 @@ Les idées et retours sont les bienvenus via les issues.
 Bibliothèques tierces incluses dans `src/vendor/`, chacune avec sa propre licence :
 
 - [OpenCV.js](src/vendor/opencv/) 5.0.0 : Apache-2.0.
+- [Polices](src/vendor/fonts/) Fraunces et Inter (sous-ensembles WOFF2) : SIL OFL 1.1.

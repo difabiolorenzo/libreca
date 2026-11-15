@@ -18,10 +18,7 @@
 - Identité visuelle « Papier & Lumière » : thème Papier (clair) partout, thème Nuit (sombre) pour la capture et le mode sombre ; une seule action en couleur (accent « signet ») par écran
 - Accessibilité : WCAG 2.2 niveau AA sur tous les écrans, et PDF produit accessible
 - Icônes : jeu maison en SVG, sans dépendance
-
-## Décisions à prendre
-
-- [ ] Polices Fraunces (titres) et Inter (interface), licence SIL OFL 1.1, servies en local en WOFF2 sous-ensemblé (environ 100 Ko par fichier) : valider l'ajout
+- Polices : Fraunces (titres) et Inter (interface), licence SIL OFL 1.1 (fichiers `OFL-Fraunces.txt` et `OFL-Inter.txt` joints), servies en local en WOFF2 sous-ensemblé (latin et latin étendu, graisses 400 à 700 : 87 Ko et 122 Ko)
 
 ## Prochaines étapes
 
@@ -43,25 +40,25 @@
 - [x] Détection de page robuste aux doigts posés sur la page (points de contour sur la peau ignorés, côtés ajustés par des droites, coin caché retrouvé)
 
 ### v0.1.5 — Système de design et écrans
-- [ ] `src/styles/tokens.css` : variables CSS reprises de `tokens.json` (couleurs des thèmes Papier et Nuit, typographie, espacements, rayons, tailles, ombre `shadow-page`), tailles en `rem`
-- [ ] Thèmes : Papier par défaut, Nuit sur l'écran de capture et avec `prefers-color-scheme: dark` ; choix du thème dans les paramètres (système / clair / sombre)
-- [ ] Remplacer les couleurs et `color-mix()` en dur de `main.css` par les tokens (texte `ink` / `ink-muted`, bordures de contrôle `border-control`, liens `accent-text`)
-- [ ] Polices Fraunces et Inter dans `src/vendor/fonts/` (`@font-face` local, piles de repli Georgia / system-ui), après validation
-- [ ] Logo en SVG (livre ouvert dans les coins d'un viseur, mot-symbole **libre**ca, « ca » en accent) et icônes d'app (fond `ink` et fond `accent`), favicon
-- [ ] Jeu d'icônes maison en SVG (`src/ui/icons/`), sans dépendance : trait 2px sur 24px, extrémités arrondies, `currentColor`, même dessin que le logo ; `aria-label` sur les boutons-icônes, `aria-hidden` sur les icônes décoratives ; aucun emoji
-- [ ] Composant `Button` : variantes accent (une seule par écran), primary (fond `ink`), secondary (bordure), hauteur 52px, largeur libre, focus `focus` 2px décalé de 2px
-- [ ] Composant `Shutter` (déclencheur 76px) : mode Auto (anneau `detect`) et Manuel (disque `accent`)
-- [ ] Composant `StatusChip` (pastille 32px, icône + texte) : ok, info, warning, danger ; posée sur `scrim` au-dessus du flux caméra
-- [ ] Composant `PageThumb` (vignette 64px, ratio 0,7, `radius-page`, `shadow-page`) : états en cours (`aria-current`) et à reprendre (tirets `warning`), nom accessible « Page 24, corrigée »
-- [ ] Composant `Toggle` (`input type="checkbox" role="switch"` dans son `label`, ligne de 48px)
-- [ ] Réorganiser `index.html` en écrans au lieu de cartes empilées : bibliothèque, capture, revue de page, livre et export, paramètres (la page de diagnostic passe dans les paramètres)
-- [ ] Écran de capture plein écran en thème Nuit (maquette « 1 · Capture live ») : barre du haut (fermer, titre du livre, n° de page), viseur à coins verts, bande de vignettes, bas d'écran Auto / déclencheur / Terminer à portée du pouce
-- [ ] Viseur : dessiner les coins de la page détectée (couleur `detect` + forme) plutôt qu'un contour, animation de resserrement à la détection
-- [ ] Ajustement des coins (`corner-editor`) restylé avec les tokens
-- [ ] Zones tactiles ≥ 48px (`target-min`), marges d'écran `space-5` (téléphone) / `space-8` (> 600px), portrait et paysage, interface utilisable à 200 % de taille de texte
-- [ ] `prefers-reduced-motion` : animations remplacées par des fondus courts
-- [ ] Microcopie : relire les clés de `fr.js` (vouvoiement, verbes d'action, pas de jargon technique) et prévoir 30 % de longueur en plus pour les autres langues
-- [ ] Mention « Tout reste sur votre appareil » visible dans l'interface
+- [x] `src/styles/tokens.css` : variables CSS reprises de `tokens.json` (couleurs des thèmes Papier et Nuit, typographie, espacements, rayons, tailles, ombre `shadow-page`), tailles en `rem`
+- [x] Thèmes : Papier par défaut, Nuit sur l'écran de capture (classe `theme-nuit`) et avec `prefers-color-scheme: dark` ; choix du thème dans les paramètres (comme l'appareil / clair / sombre)
+- [x] Remplacer les couleurs et `color-mix()` en dur de `main.css` par les tokens (texte `ink` / `ink-muted`, bordures de contrôle `border-control`, liens `accent-text`)
+- [x] Polices Fraunces et Inter dans `src/vendor/fonts/` avec leur licence, mentionnées dans le README — `@font-face` local et piles de repli (`src/styles/fonts.css`)
+- [x] Logo en SVG (livre ouvert dans les coins d'un viseur, mot-symbole **libre**ca, « ca » en accent) et icônes d'app (fond `ink` et fond `accent`), favicon — `src/assets/` ; icônes PNG de la PWA avec le manifeste (v0.5)
+- [x] Jeu d'icônes maison en SVG (`src/ui/icons.js`, 20 icônes), sans dépendance : trait 2px sur 24px, extrémités arrondies, `currentColor`, même dessin que le logo ; `aria-label` sur les boutons-icônes, `aria-hidden` sur les icônes décoratives ; aucun emoji
+- [x] Composant `Button` : variantes accent (une seule par écran), primary (fond `ink`), secondary (bordure), hauteur 52px, largeur libre, focus `focus` 2px décalé de 2px
+- [x] Composant `Shutter` (déclencheur 76px) : mode Auto (anneau `detect`) et Manuel (disque `accent`) — mode Auto prêt côté style, utilisé avec la capture automatique (v0.2)
+- [x] Composant `StatusChip` (pastille 32px, icône + texte) : ok, info, warning, danger ; posée sur `scrim` au-dessus du flux caméra
+- [x] Composant `PageThumb` (vignette 64px, ratio 0,7, `radius-page`, `shadow-page`) : états en cours (`aria-current`) et à reprendre (tirets `warning`), nom accessible « Page 24, corrigée »
+- [x] Composant `Toggle` (`input type="checkbox" role="switch"` dans son `label`, ligne de 48px) — prêt, servira aux réglages de capture (v0.2)
+- [x] Réorganiser `index.html` en écrans au lieu de cartes empilées : bibliothèque, capture, revue de page, livre et export, paramètres (la page de diagnostic passe dans les paramètres) — navigation par adresse (`#/capture`, `#/book`, `#/page/3`, `#/settings`), bouton retour du navigateur et d'Android
+- [x] Écran de capture plein écran en thème Nuit (maquette « 1 · Capture live ») : barre du haut (fermer, titre du livre, n° de page), viseur à coins verts, bande de vignettes, bas d'écran Auto / déclencheur / Terminer à portée du pouce — le bouton Auto arrive avec la capture automatique (v0.2)
+- [x] Viseur : dessiner les coins de la page détectée (couleur `detect` + forme) plutôt qu'un contour, animation de resserrement à la détection
+- [x] Ajustement des coins (`corner-editor`) restylé avec les tokens
+- [x] Zones tactiles ≥ 48px (`target-min`), marges d'écran `space-5` (téléphone) / `space-8` (> 600px), portrait et paysage, interface utilisable à 200 % de taille de texte — capture en paysage : commandes en colonne à droite
+- [x] `prefers-reduced-motion` : animations remplacées par des fondus courts (viseur, déclencheur, interrupteur)
+- [x] Microcopie : relire les clés de `fr.js` (vouvoiement, verbes d'action, pas de jargon technique) et prévoir 30 % de longueur en plus pour les autres langues
+- [x] Mention « Tout reste sur votre appareil » visible dans l'interface (écran d'accueil)
 
 ### v0.2 — Capture automatique
 - [ ] Mesure de stabilité (mouvement entre images)

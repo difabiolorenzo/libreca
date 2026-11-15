@@ -1,0 +1,22 @@
+/*
+ * Local fonts (SIL OFL 1.1), served from src/vendor/fonts/, never from the
+ * network. Subsets: latin and latin extended, weights 400 to 700. If a file
+ * is missing, the fallback stacks of tokens.css
+ * (Georgia, system-ui) are used.
+ */
+
+@font-face {
+  font-family: Fraunces;
+  src: url("../vendor/fonts/Fraunces-Variable.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: Inter;
+  src: url("../vendor/fonts/InterVariable.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+}

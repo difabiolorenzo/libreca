@@ -53,7 +53,7 @@ test('every language has exactly the French keys', async () => {
 test('t() translates, interpolates and falls back to the key', async () => {
   await setLanguage('fr');
   assert.equal(t('settings.language'), 'Langue');
-  assert.equal(t('camera.running', { width: 1920, height: 1080 }), 'Caméra active : 1920 × 1080');
+  assert.equal(t('review.title', { number: 3, count: 10 }), 'Page 3 sur 10');
   assert.equal(t('camera.unnamed'), 'Caméra {index}');
   assert.equal(t('does.not.exist'), 'does.not.exist');
 });

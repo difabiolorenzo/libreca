@@ -1,0 +1,137 @@
+/*
+ * Design tokens of the « Papier & Lumière » identity (design system
+ * « Libreca — Système de design », tokens.json). Use only these variables
+ * in the rest of the CSS.
+ *
+ * Themes:
+ * - Papier (light): default.
+ * - Nuit (dark): `prefers-color-scheme: dark` unless the user picked the
+ *   light theme, `data-theme="dark"` on <html>, and any `.theme-nuit`
+ *   element (the capture screen is always Nuit).
+ * The Nuit values are written twice (media query and selectors) because
+ * CSS cannot share one block between them.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Colors — Papier */
+  --bg: #F4EFE6;
+  --surface: #FFFDF8;
+  --surface-sunken: #E6DFD2;
+  --ink: #1B1A17;
+  --ink-inverse: #F4EFE6;
+  --ink-muted: #5C574E;
+  --line: #D9D1C3;
+  --border-control: #8A8275;
+  --accent: #C2410C;
+  --on-accent: #FFFDF8;
+  --accent-text: #9F3509;
+  --detect: #1E6B45;
+  --detect-soft: #E3F5EB;
+  --on-detect-soft: #1E6B45;
+  --warning: #8A5A00;
+  --danger: #B42318;
+  --focus: #2557D6;
+  --scrim: #121110CC;
+  --shadow-page: 0 2px 6px #1B1A171A;
+
+  /* Typography (1rem = 16px, follows the user's text size) */
+  --font-display: Fraunces, Georgia, "Times New Roman", serif;
+  --font-ui: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Menlo, monospace;
+
+  --text-display: 600 2.5rem/2.75rem var(--font-display);
+  --text-display-tracking: -0.05rem;
+  --text-title: 600 1.75rem/2.125rem var(--font-display);
+  --text-title-tracking: -0.025rem;
+  --text-heading: 600 1.25rem/1.625rem var(--font-display);
+  --text-body: 400 1.0625rem/1.625rem var(--font-ui);
+  --text-body-strong: 600 1.0625rem/1.625rem var(--font-ui);
+  --text-button: 600 1rem/1.25rem var(--font-ui);
+  --text-body-sm: 400 0.9375rem/1.375rem var(--font-ui);
+  --text-label: 600 0.8125rem/1.125rem var(--font-ui);
+  --text-label-tracking: 0.075rem;
+  --text-caption: 500 0.8125rem/1.125rem var(--font-ui);
+
+  /* Spacing (4px grid) */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+
+  /* Radii */
+  --radius-page: 4px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Sizes */
+  --target-min: 3rem;
+  --button-height: 3.25rem;
+  --shutter: 4.75rem;
+  --thumb-w: 4rem;
+
+  /* Motion */
+  --duration-fast: 120ms;
+  --duration: 200ms;
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121110;
+    --surface: #1F1D1A;
+    --surface-sunken: #2A2825;
+    --ink: #F4EFE6;
+    --ink-inverse: #121110;
+    --ink-muted: #B5AD9F;
+    --line: #34312D;
+    --border-control: #7A7368;
+    --accent: #F08A5D;
+    --on-accent: #121110;
+    --accent-text: #F08A5D;
+    --detect: #7DD3A8;
+    --detect-soft: #7DD3A8;
+    --on-detect-soft: #10301F;
+    --warning: #F2C14E;
+    --danger: #FF8A80;
+    --focus: #8AB4FF;
+    --shadow-page: 0 2px 6px #00000066;
+  }
+}
+
+:root[data-theme="dark"],
+.theme-nuit {
+  color-scheme: dark;
+  --bg: #121110;
+  --surface: #1F1D1A;
+  --surface-sunken: #2A2825;
+  --ink: #F4EFE6;
+  --ink-inverse: #121110;
+  --ink-muted: #B5AD9F;
+  --line: #34312D;
+  --border-control: #7A7368;
+  --accent: #F08A5D;
+  --on-accent: #121110;
+  --accent-text: #F08A5D;
+  --detect: #7DD3A8;
+  --detect-soft: #7DD3A8;
+  --on-detect-soft: #10301F;
+  --warning: #F2C14E;
+  --danger: #FF8A80;
+  --focus: #8AB4FF;
+  --shadow-page: 0 2px 6px #00000066;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration: 100ms;
+  }
+}

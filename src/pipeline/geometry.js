@@ -180,3 +180,31 @@ export function quadSize([tl, tr, br, bl]) {
     height: Math.max(1, Math.round(Math.max(distance(tl, bl), distance(tr, br)))),
   };
 }
+
+/**
+ * Viewfinder brackets drawn on a detected page: for each corner, a short
+ * line along each of its two sides, `[toPrevious, corner, toNext]`.
+ * `spread` > 1 pushes the brackets out from the page center (used to animate
+ * them closing in on the page).
+ * @param {readonly Point[]} quad corners in order (any unit)
+ * @param {{ spread?: number, ratio?: number, maxLength?: number }} [options]
+ *   ratio: bracket length as a fraction of the shorter adjacent side
+ * @returns {[Point, Point, Point][]}
+ */
+export function viewfinderCorners(quad, { spread = 1, ratio = 0.2, maxLength = Infinity } = {}) {
+  const n = quad.length;
+  const cx = quad.reduce((s, p) => s + p.x, 0) / n;
+  const cy = quad.reduce((s, p) => s + p.y, 0) / n;
+  const pts = quad.map((p) => ({ x: cx + (p.x - cx) * spread, y: cy + (p.y - cy) * spread }));
+  return pts.map((corner, i) => {
+    const prev = pts[(i + n - 1) % n];
+    const next = pts[(i + 1) % n];
+    const length = Math.min(maxLength, ratio * Math.min(distance(corner, prev), distance(corner, next)));
+    /** @param {Point} to */
+    const toward = (to) => {
+      const d = distance(corner, to) || 1;
+      return { x: corner.x + ((to.x - corner.x) / d) * length, y: corner.y + ((to.y - corner.y) / d) * length };
+    };
+    return [toward(prev), corner, toward(next)];
+  });
+}
