@@ -1,6 +1,6 @@
 /**
  * Saved books, on this device only (IndexedDB). Two stores:
- * - `books`: { id, title, created, updated, nextId, order } where `order`
+ * - `books`: { id, title, author, created, updated, nextId, order } where `order`
  *   lists the page ids in reading order;
  * - `pages`: one record per page (its images as Blobs), key [bookId, id].
  * Nothing leaves the device.
@@ -12,10 +12,13 @@
  * @typedef {object} BookRecord
  * @property {number} id
  * @property {string} title '' until renamed
+ * @property {string} [author] '' or missing until filled in (books saved before v0.4 have none)
  * @property {number} created
  * @property {number} updated
  * @property {number} nextId next page id
  * @property {number[]} order page ids in reading order
+ * @property {number} [coverId] page marked as the cover photo (0 or missing: none); it is the
+ *   cover only while it is the first page
  */
 
 const DB_NAME = 'libreca';
@@ -86,7 +89,7 @@ export async function getBook(id) {
 export async function createBook() {
   const now = Date.now();
   /** @type {Omit<BookRecord, 'id'>} */
-  const book = { title: '', created: now, updated: now, nextId: 1, order: [] };
+  const book = { title: '', author: '', created: now, updated: now, nextId: 1, order: [], coverId: 0 };
   const t = await tx('books', 'readwrite');
   const id = /** @type {number} */ (await done(t.objectStore('books').add(book)));
   return { ...book, id };

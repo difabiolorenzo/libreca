@@ -44,7 +44,7 @@
 - [x] Thèmes : Papier par défaut, Nuit sur l'écran de capture (classe `theme-nuit`) et avec `prefers-color-scheme: dark` ; choix du thème dans les paramètres (comme l'appareil / clair / sombre)
 - [x] Remplacer les couleurs et `color-mix()` en dur de `main.css` par les tokens (texte `ink` / `ink-muted`, bordures de contrôle `border-control`, liens `accent-text`)
 - [x] Polices Fraunces et Inter dans `src/vendor/fonts/` avec leur licence, mentionnées dans le README — `@font-face` local et piles de repli (`src/styles/fonts.css`)
-- [x] Logo en SVG (livre ouvert dans les coins d'un viseur, mot-symbole **libre**ca, « ca » en accent) et icônes d'app (fond `ink` et fond `accent`), favicon — `src/assets/` ; icônes PNG de la PWA avec le manifeste (v0.5)
+- [x] Logo en SVG (livre ouvert dans les coins d'un viseur, mot-symbole **libre**ca, « ca » en accent) et icônes d'app (fond `ink` et fond `accent`), favicon — `src/assets/` ; icônes PNG de la PWA avec le manifeste (v0.4)
 - [x] Jeu d'icônes maison en SVG (`src/ui/icons.js`, 20 icônes), sans dépendance : trait 2px sur 24px, extrémités arrondies, `currentColor`, même dessin que le logo ; `aria-label` sur les boutons-icônes, `aria-hidden` sur les icônes décoratives ; aucun emoji
 - [x] Composant `Button` : variantes accent (une seule par écran), primary (fond `ink`), secondary (bordure), hauteur 52px, largeur libre, focus `focus` 2px décalé de 2px
 - [x] Composant `Shutter` (déclencheur 76px) : mode Auto (anneau `detect`) et Manuel (disque `accent`) — mode Auto prêt côté style, utilisé avec la capture automatique (v0.2)
@@ -89,20 +89,20 @@
 - [x] Bibliothèque : liste des livres en cours, créer un livre, supprimer (action `danger` avec confirmation)
 - [x] Sauvegarde du projet en cours (IndexedDB)
 
-### v0.4 — Doigts (IA optionnelle)
+### v0.4 — OCR et finitions
+- [x] OCR Tesseract.js en couche texte invisible (option « Texte sélectionnable » dans la feuille d'export) — Tesseract.js 7 servi en local (`src/vendor/tesseract/`, moteur LSTM SIMD ou sans SIMD, modèle français), `src/export/ocr.js` ; texte invisible calé sur les mots de l'image, résultat gardé en mémoire tant que l'image de la page ne change pas
+- [x] Métadonnées (titre, auteur), couverture — titre et auteur (champ « Auteur ou autrice » du panneau d'export, enregistré avec le livre) écrits dans le PDF (Info et XMP) ; couverture : photo choisie dans la revue de page (bouton « Couverture », placée en tête) ou, à défaut, couverture générée avec le titre et l'auteur (option du panneau d'export, `src/export/cover.js`) ; dans le PDF, la première page porte l'étiquette « Couverture » et la suivante est numérotée 1
+- [x] PDF accessible : langue du document déclarée, titre dans les métadonnées, ordre de lecture correct — `/Lang`, `DisplayDocTitle` ; avec « Texte sélectionnable » : PDF balisé (paragraphes dans l'ordre de lecture, image de page en décoration, page sans texte en figure avec texte de remplacement)
+- [ ] Feuille d'export : bouton accent « Créer le PDF »
+- [x] PWA hors ligne (service worker), icônes d'app et manifeste aux couleurs du logo — service worker (`sw.js` : fichiers toujours à jour, copie hors ligne), `manifest.webmanifest` (installable, fond Papier), icônes PNG 192, 512, « maskable » 512 et Apple 180 dans `src/assets/`, produites depuis les SVG par `tools/icons.html`
+- [ ] Audit d'accessibilité WCAG 2.2 AA (clavier, lecteur d'écran, contrastes dans les deux thèmes)
+
+### v0.5 — Doigts (IA optionnelle)
 - [ ] Détection des mains (MediaPipe)
 - [ ] Inpainting OpenCV (sans IA) en premier
 - [ ] Module LaMa ONNX léger, téléchargeable à part
 - [ ] Vérifier les licences des modèles
 - [ ] Pastille « Doigt effacé » et visibilité dans le comparateur avant/après
-
-### v0.5 — OCR et finitions
-- [ ] OCR Tesseract.js en couche texte invisible (option « Texte sélectionnable » dans la feuille d'export)
-- [ ] Métadonnées (titre, auteur), couverture
-- [ ] PDF accessible : langue du document déclarée, titre dans les métadonnées, ordre de lecture correct
-- [ ] Feuille d'export : bouton accent « Créer le PDF »
-- [ ] PWA hors ligne (service worker), icônes d'app et manifeste aux couleurs du logo — service worker en place (`sw.js` : fichiers toujours à jour, copie hors ligne) ; restent le manifeste et les icônes
-- [ ] Audit d'accessibilité WCAG 2.2 AA (clavier, lecteur d'écran, contrastes dans les deux thèmes)
 
 ### v1.0 — Distribution
 - [ ] Exécutable PC (Tauri)

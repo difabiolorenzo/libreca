@@ -6,6 +6,9 @@
   <meta name="theme-color" content="#F4EFE6">
   <title>Libreca</title>
   <link rel="icon" href="src/assets/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="src/assets/icon-192.png" type="image/png" sizes="192x192">
+  <link rel="apple-touch-icon" href="src/assets/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="src/styles/fonts.css">
   <link rel="stylesheet" href="src/styles/tokens.css">
   <link rel="stylesheet" href="src/styles/main.css">
@@ -103,6 +106,22 @@
       <ol id="page-list" class="pages"></ol>
       <section class="card export-panel" aria-labelledby="export-title">
         <h2 id="export-title" data-i18n="book.exportTitle"></h2>
+        <label class="field">
+          <span data-i18n="book.author"></span>
+          <input id="book-author" type="text" autocomplete="off" spellcheck="false" data-i18n-attr="placeholder:book.authorPlaceholder">
+        </label>
+        <label id="title-cover-row" class="toggle">
+          <span data-i18n="book.titleCover"></span>
+          <input id="title-cover-toggle" type="checkbox" role="switch">
+        </label>
+        <p id="cover-note" class="meta" hidden></p>
+        <div>
+          <label class="toggle">
+            <span data-i18n="book.selectableText"></span>
+            <input id="selectable-text-toggle" type="checkbox" role="switch" aria-describedby="selectable-text-help">
+          </label>
+          <p id="selectable-text-help" class="meta" data-i18n="book.selectableTextHelp"></p>
+        </div>
         <button id="export-pdf" type="button" class="btn btn-accent" disabled><span data-icon="export"></span><span data-i18n="pages.export"></span></button>
         <output id="export-status" class="status" aria-live="polite"></output>
       </section>
@@ -145,6 +164,7 @@
       <div class="review-actions">
         <button id="review-delete" type="button" class="btn btn-secondary btn-danger"><span data-icon="trash"></span><span data-i18n="review.delete"></span></button>
         <div class="btn-pair">
+          <button id="review-cover" type="button" class="btn btn-secondary" aria-pressed="false" data-i18n-attr="title:review.coverHelp"><span data-icon="book"></span><span data-i18n="review.cover"></span></button>
           <button id="review-adjust" type="button" class="btn btn-secondary"><span data-icon="corners"></span><span data-i18n="review.adjust"></span></button>
           <button id="review-retake" type="button" class="btn btn-secondary"><span data-icon="retake"></span><span data-i18n="review.retake"></span></button>
           <a class="btn btn-primary" href="#/book"><span data-icon="check"></span><span data-i18n="review.done"></span></a>

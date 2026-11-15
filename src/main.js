@@ -30,7 +30,9 @@ import { createPageThumb } from './ui/page-thumb.js';
 import { Screens } from './ui/screens.js';
 import { applyIcons, createIcon } from './ui/icons.js';
 import { setChip } from './ui/status-chip.js';
-import { buildPdf } from './export/pdf.js';
+import { buildPdf, jpegInfo } from './export/pdf.js';
+import { renderCover } from './export/cover.js';
+import { Ocr } from './export/ocr.js';
 import {
   listBooks, getBook, createBook, saveBook, deleteBook, loadPages, coverOf, savePage, deletePage, persistStorage,
 } from './lib/store.js';
@@ -529,6 +531,12 @@ let book = null;
 /** Title of the open book, '' until renamed. */
 const bookTitle = () => book?.title ?? '';
 
+/**
+ * The page is the book's cover photo: marked as such and still first.
+ * @param {number | undefined} id
+ */
+const isCover = (id) => !!id && book?.coverId === id && pages.pages[0]?.id === id;
+
 /** Saves run one after the other, in the order of the changes. */
 let saving = Promise.resolve();
 
@@ -601,6 +609,14 @@ function onRename() {
   if (title === null) return;
   book.title = title.trim();
   renderBook();
+  saveBookRecord();
+}
+
+function onAuthorChange() {
+  if (!book) return;
+  const author = $('book-author').value.trim();
+  if (author === (book.author ?? '')) return;
+  book.author = author;
   saveBookRecord();
 }
 
@@ -745,7 +761,7 @@ function pageButton(icon, label, action, disabled = false) {
  */
 function thumbFor(page, current, tools = false) {
   const number = pages.numberOf(page.id);
-  const thumb = createPageThumb({ url: page.url, number, retake: !page.detected, current });
+  const thumb = createPageThumb({ url: page.url, number, retake: !page.detected, current, cover: isCover(page.id) });
   thumb.addEventListener('click', () => screens.go(`page/${page.id}`));
   const item = document.createElement('li');
   item.dataset.id = String(page.id);
@@ -823,6 +839,14 @@ function renderBook() {
     cover.replaceChildren(createIcon('book'));
   }
   $('book-meta').textContent = pageCount(count);
+  const authorInput = /** @type {HTMLInputElement} */ ($('book-author'));
+  if (document.activeElement !== authorInput) authorInput.value = book?.author ?? '';
+  // A cover photo replaces the generated cover.
+  const coverPhoto = isCover(list[0]?.id);
+  $('title-cover-row').hidden = coverPhoto;
+  const note = $('cover-note');
+  note.hidden = !coverPhoto;
+  note.textContent = coverPhoto ? t('book.coverPhoto') : '';
   $('book-organize').hidden = count === 0;
   if (count === 0) {
     const empty = document.createElement('li');
@@ -859,6 +883,7 @@ function renderReview() {
   $('review-before').src = page.beforeUrl;
   setStatus($('review-state'), page.detected ? 'review.stateDone' : 'review.stateRetake', {}, page.detected ? 'ok' : 'warning');
   $('review-mirror').setAttribute('aria-pressed', String(page.orientation.mirror));
+  $('review-cover').setAttribute('aria-pressed', String(isCover(page.id)));
   renderCorrections(page);
   updateCompare();
   return true;
@@ -1032,6 +1057,23 @@ function onDelete() {
   if (deletePageAsked(reviewId)) screens.go('book');
 }
 
+/** Mark the reviewed page as the cover photo (it moves first), or unmark it. */
+function onCoverToggle() {
+  if (!book || !pages.get(reviewId)) return;
+  if (isCover(reviewId)) {
+    book.coverId = 0;
+    announcer.say(t('review.coverUnset'), { force: true });
+  } else {
+    const number = pages.numberOf(reviewId);
+    book.coverId = reviewId;
+    pages.move(reviewId, 0);
+    announcer.say(t('review.coverSet', { number }), { force: true });
+  }
+  saveBookRecord();
+  renderBook();
+  renderReview();
+}
+
 function initReview() {
   cornerEditor = new CornerEditor($('corner-dialog'));
   $('review-adjust').addEventListener('click', onAdjust);
@@ -1040,6 +1082,7 @@ function initReview() {
   $('review-color').addEventListener('change', () => onCorrect({ color: $('review-color').value }));
   $('review-compare-range').addEventListener('input', updateCompare);
   $('review-delete').addEventListener('click', onDelete);
+  $('review-cover').addEventListener('click', onCoverToggle);
   $('review-rotate-left').addEventListener('click', () => onOrientPage((o) => rotate(o, -90)));
   $('review-rotate-right').addEventListener('click', () => onOrientPage((o) => rotate(o, 90)));
   $('review-mirror').addEventListener('click', () => onOrientPage(toggleMirror));
@@ -1077,7 +1120,50 @@ async function onExport() {
   setStatus(status, 'pages.exporting');
   try {
     const jpegs = await Promise.all(pages.pages.map(async (p) => new Uint8Array(await p.image.arrayBuffer())));
-    const pdf = buildPdf(jpegs);
+    onAuthorChange(); // a name still being typed counts
+    const title = bookTitle() || t('book.untitled');
+    const author = book?.author ?? '';
+    // Cover: the cover photo (already first), else a generated one if asked.
+    let cover = isCover(pages.pages[0]?.id);
+    const generated = !cover && getSetting('titleCover', false) === true;
+    // Text alternative of each page image, for a page without recognized text.
+    const alts = pages.pages.map((p) => (isCover(p.id) ? t('pages.cover') : t('pdf.pageAlt', { number: pages.numberOf(p.id) })));
+    const lang = getLanguage(); // the book is assumed to be in the interface language
+
+    // Selectable text: read each page (in Tesseract's own worker).
+    /** @type {(import('./export/ocr.js').OcrPage | null)[] | undefined} */
+    let text;
+    if (getSetting('selectableText', false) === true && Ocr.supports(lang)) {
+      const ocr = new Ocr(lang);
+      text = [];
+      try {
+        for (const [i, page] of pages.pages.entries()) {
+          setStatus(status, 'pages.recognizing', { number: i + 1, count: pages.pages.length });
+          const { width, height } = jpegInfo(jpegs[i]);
+          text.push(await ocr.recognize(page.image, width, height));
+        }
+      } finally {
+        await ocr.close();
+      }
+      setStatus(status, 'pages.exporting');
+    }
+
+    if (generated) {
+      const { width, height } = jpegInfo(jpegs[0]); // same ratio as the first page
+      const scale = 1600 / width;
+      jpegs.unshift(await renderCover({ title, author, width: 1600, height: Math.round(height * scale) }));
+      text?.unshift(null);
+      alts.unshift(author ? `${title}, ${author}` : title);
+      cover = true;
+    }
+    const pdf = buildPdf(jpegs, {
+      title,
+      author,
+      lang,
+      coverLabel: cover ? t('pages.cover') : '',
+      text,
+      alts,
+    });
     const date = new Date().toISOString().slice(0, 10);
     download(new Blob([pdf], { type: 'application/pdf' }), `${fileStem(bookTitle()) || 'libreca'}-${date}.pdf`);
     setStatus(status, 'pages.exported', { pages: pageCount(jpegs.length) }, 'ok');
@@ -1117,6 +1203,9 @@ async function main() {
   initReview();
   $('export-pdf').addEventListener('click', onExport);
   $('book-rename').addEventListener('click', onRename);
+  $('book-author').addEventListener('change', onAuthorChange);
+  initToggle('title-cover-toggle', 'titleCover', false);
+  initToggle('selectable-text-toggle', 'selectableText', false);
   $('book-organize').addEventListener('click', () => setOrganizing(!organizing));
   $('page-list').addEventListener('click', onPageTool);
   enableDragReorder($('page-list'), movePage);

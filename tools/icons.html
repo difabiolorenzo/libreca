@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Libreca — app icons (PNG)</title>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem; background: #F4EFE6; color: #1B1A17; }
+    li { margin: 0.5rem 0; }
+    img { vertical-align: middle; width: 48px; height: 48px; margin-right: 0.75rem; }
+  </style>
+</head>
+<body>
+  <!-- Developer tool, not part of the app: draws the PNG app icons from the
+       SVG sources of src/assets/ (run `npm start`, open
+       http://localhost:8080/tools/icons.html, save each file into
+       src/assets/). Redo it whenever an icon SVG changes. -->
+  <h1>App icons (PNG)</h1>
+  <ul id="list"></ul>
+  <script type="module">
+    /** [file name, SVG source, size in pixels] */
+    export const ICONS = [
+      ['icon-192.png', 'icon.svg', 192],
+      ['icon-512.png', 'icon.svg', 512],
+      ['icon-maskable-512.png', 'icon-maskable.svg', 512],
+      ['apple-touch-icon.png', 'icon-maskable.svg', 180], // iOS rounds the corners itself
+    ];
+
+    /** @param {string} svg @param {number} size @returns {Promise<Blob>} */
+    async function draw(svg, size) {
+      const img = new Image();
+      img.src = new URL(`../src/assets/${svg}`, import.meta.url).href;
+      await img.decode();
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      canvas.getContext('2d').drawImage(img, 0, 0, size, size);
+      return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+    }
+
+    const list = document.getElementById('list');
+    window.icons = {};
+    for (const [name, svg, size] of ICONS) {
+      const blob = await draw(svg, size);
+      window.icons[name] = blob;
+      const url = URL.createObjectURL(blob);
+      const item = document.createElement('li');
+      const preview = document.createElement('img');
+      preview.src = url;
+      preview.alt = '';
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = name;
+      link.textContent = `${name} (${size} × ${size}, from ${svg})`;
+      item.append(preview, link);
+      list.append(item);
+    }
+  </script>
+</body>
+</html>

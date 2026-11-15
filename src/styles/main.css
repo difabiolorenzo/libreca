@@ -113,7 +113,8 @@ a.btn { text-decoration: none; }
   color: var(--ink-muted);
 }
 
-select {
+select,
+input[type="text"] {
   font: var(--text-button);
   color: var(--ink);
   min-height: var(--target-min);
@@ -288,7 +289,8 @@ select {
 
 .pages.is-organizing .page-thumb { touch-action: none; cursor: grab; }
 
-#book-organize[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
+#book-organize[aria-pressed="true"],
+#review-cover[aria-pressed="true"] { color: var(--accent-text); border-color: var(--accent); }
 
 .page-tools {
   display: grid;
@@ -329,6 +331,8 @@ select {
 }
 
 .export-panel h2 { margin: 0; }
+.export-panel .field { margin: 0; }
+.export-panel .toggle + .meta { margin: var(--space-1) 0 0; }
 
 /* --- Page review -------------------------------------------------------- */
 

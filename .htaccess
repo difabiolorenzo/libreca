@@ -9,3 +9,4 @@
 
 # Fonts: give them their own type (older Apache versions do not know it).
 AddType font/woff2 .woff2
+AddType application/manifest+json .webmanifest

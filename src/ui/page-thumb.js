@@ -6,19 +6,20 @@
 import { t } from '../i18n/i18n.js';
 
 /**
- * @param {{ url: string, number: number, retake?: boolean, current?: boolean }} options
+ * @param {{ url: string, number: number, retake?: boolean, current?: boolean, cover?: boolean }} options
  *   retake: page to take again (shown with a dashed warning outline and a note)
  *   current: page in progress (accent outline, aria-current)
+ *   cover: the book's cover photo (« Couverture » instead of the page number)
  * @returns {HTMLButtonElement}
  */
-export function createPageThumb({ url, number, retake = false, current = false }) {
+export function createPageThumb({ url, number, retake = false, current = false, cover = false }) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'page-thumb';
   button.classList.toggle('is-retake', retake);
   if (current) button.setAttribute('aria-current', 'true');
   const state = t(retake ? 'pages.state.retake' : 'pages.state.done');
-  button.setAttribute('aria-label', t('pages.thumbName', { number, state }));
+  button.setAttribute('aria-label', t(cover ? 'pages.coverName' : 'pages.thumbName', { number, state }));
 
   const img = document.createElement('img');
   img.src = url;
@@ -27,7 +28,7 @@ export function createPageThumb({ url, number, retake = false, current = false }
   img.draggable = false;
 
   const caption = document.createElement('span');
-  caption.textContent = t('pages.caption', { number });
+  caption.textContent = cover ? t('pages.cover') : t('pages.caption', { number });
   button.append(img, caption);
 
   if (retake) {

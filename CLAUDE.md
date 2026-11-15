@@ -29,20 +29,22 @@ Application (PWA) qui numérise un livre papier avec une caméra et produit un P
 | Où | Quoi |
 |---|---|
 | `index.html` | Page unique de l'application |
+| `manifest.webmanifest` | Manifeste de la PWA (nom, couleurs, icônes) : appli installable |
 | `sw.js` | Service worker : chaque fichier revérifié auprès du serveur à chaque chargement (page et Web Worker toujours de la même version, malgré le cache de 10 min de GitHub Pages), copie gardée pour le hors-ligne |
 | `.htaccess` | Cache désactivé quand l'appli est servie par Apache (WAMP) |
 | `src/main.js` | Point d'entrée : écrans (bibliothèque, capture, livre, revue de page), livre ouvert et sa sauvegarde, fenêtre des paramètres et vérifications, caméra (rotation, miroir, choix de source), capture, pages (orientation), titre du livre, export |
 | `src/i18n/` | Traduction : `i18n.js` (`t()`, `data-i18n`, `data-i18n-attr`), `locales/fr.js` (référence), `locales/index.js` (langues disponibles) |
 | `src/lib/` | Utilitaires : `settings.js` (localStorage), `theme.js` (thème Papier / Nuit, attribut `data-theme`), `store.js` (sauvegarde des livres et des pages dans IndexedDB), `image.js` (image de la vidéo, JPEG, réorientation), `orientation.js` (rotation par quart de tour et miroir), `opencv.js` + `opencv-worker.js` (OpenCV.js dans un Web Worker module, requêtes `detect` / `warp` / `process` / `enhance`), `opencv-ready.js` (attente du module, partagée avec les tests) |
 | `src/styles/` | CSS : `tokens.css` (variables du système de design, thèmes Papier et Nuit, classe `theme-nuit`), `fonts.css` (polices locales), `components.css` (Button, Shutter, StatusChip, PageThumb, Toggle), `main.css` (mise en page) ; n'utiliser que les tokens |
-| `src/assets/` | Logo et icônes d'app en SVG |
-| `src/vendor/` | Bibliothèques tierces servies en local (`opencv/opencv.js`, non fourni dans le dépôt pour l'instant ; `fonts/` : Fraunces et Inter en WOFF2 sous-ensemblé, avec leur licence OFL) |
+| `src/assets/` | Logo et icônes d'app en SVG (`icon.svg`, `icon-accent.svg`, `icon-maskable.svg`) et leurs PNG pour le manifeste (192, 512, maskable 512, `apple-touch-icon.png`) |
+| `src/vendor/` | Bibliothèques tierces servies en local (`opencv/opencv.js`, non fourni dans le dépôt pour l'instant ; `fonts/` : Fraunces et Inter en WOFF2 sous-ensemblé, avec leur licence OFL ; `tesseract/` : Tesseract.js 7, moteur WASM et modèle français, voir son `README.md`) |
 | `src/capture/` | Sources vidéo (`camera.js`), détection de page en direct sur le flux (`live-detector.js`), suivi de stabilité (`stability.js`), décision de capture automatique (`auto-capture.js`), retour à chaque capture : vignette, vibration, son (`feedback.js`) |
 | `src/pipeline/` | Une étape = un module, fonction pure `(cv, image, …)` : `geometry.js` (quadrilatères, ajustement de droites, sans OpenCV), `skin.js` (détection de peau pour ignorer les doigts), `detect-page.js`, `perspective.js`, `sharpness.js` (variance du Laplacien), `motion.js` (mouvement d'image et quadrilatère), `fingerprint.js` (empreinte de page, changement de page), `fingers.js` (doigt sur le texte), `binding.js` (double page et reliure ; découpage avec `splitQuad` de `geometry.js`), `dewarp.js` (courbure des lignes de texte), `clean.js` (fond blanc, ombres, contraste, modes couleur / gris / N&B), `crop.js` (recadrage, marges uniformes), `enhance.js` (enchaîne les corrections, chacune désactivable) |
 | `src/ai/` | (prévu) Modules IA optionnels (mains, effacement des doigts) |
-| `src/export/` | `pdf.js` (générateur PDF minimal, une image JPEG par page) ; à venir : OCR |
+| `src/export/` | `pdf.js` (générateur PDF minimal, une image JPEG par page, métadonnées titre, auteur et langue en Info et XMP, étiquette « Couverture »), `cover.js` (couverture générée : titre et auteur dessinés sur canvas, en JPEG), `ocr.js` (OCR Tesseract.js pour la couche texte invisible et le balisage du PDF) |
 | `src/ui/` | Composants d'interface : `screens.js` (écrans et navigation par adresse `#/…`), `icons.js` (jeu d'icônes maison, `data-icon`), `status-chip.js` (pastille d'état), `page-thumb.js` (vignette de page), `page-list.js` (pages du livre ouvert, sans affichage : image redressée, corrections, image finale ; signale chaque changement pour la sauvegarde), `reorder.js` (glisser-déposer à la souris ou au doigt), `corner-editor.js` (ajustement manuel des coins), `announcer.js` (annonces `aria-live` pour les lecteurs d'écran) |
 | `tools/serve.mjs` | Serveur de développement sans dépendance (HTTP local, HTTPS sur le réseau local) |
+| `tools/icons.html` | Outil de développement : produit les icônes PNG depuis les SVG de `src/assets/` (à refaire si une icône change) |
 | `tests/` | Tests `node:test` ; `tests/helpers/` (OpenCV.js dans Node, images de synthèse) ; `tests/fixtures/` : photos de livres de référence et résultats attendus |
 
 Mettre ce tableau à jour quand la structure change.
