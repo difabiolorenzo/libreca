@@ -1,7 +1,7 @@
 /**
  * OpenCV.js runs in a dedicated module Web Worker (see opencv-worker.js).
  * The library is served locally from src/vendor/opencv/, never from a CDN.
- * This module loads it and forwards requests (detect, warp, process).
+ * This module loads it and forwards requests (detect, warp, process, enhance).
  */
 
 /**
@@ -73,7 +73,7 @@ export function loadOpenCV(timeoutMs = 60000) {
 
 /**
  * Send a request to the OpenCV worker (loads it first if needed).
- * @param {'detect' | 'warp' | 'process'} type
+ * @param {'detect' | 'warp' | 'process' | 'enhance'} type
  * @param {object} payload
  * @param {Transferable[]} [transfer] buffers handed over (no copy)
  * @returns {Promise<any>}

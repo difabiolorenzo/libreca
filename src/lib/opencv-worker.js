@@ -15,6 +15,7 @@ import { measureMotion } from '../pipeline/motion.js';
 import { pageFingerprint } from '../pipeline/fingerprint.js';
 import { fingerCoverage } from '../pipeline/fingers.js';
 import { findBinding } from '../pipeline/binding.js';
+import { enhancePage } from '../pipeline/enhance.js';
 
 const OPENCV_URL = new URL('../vendor/opencv/opencv.js', import.meta.url);
 
@@ -111,8 +112,9 @@ const handlers = {
 
   /** Capture: detect the page on the full frame (else use the last live
    * detection, else the whole image), then straighten it. With `split`, a
-   * double page is cut at the binding into two pages (left first). */
-  process: ({ image, fallback, split = false }) => {
+   * double page is cut at the binding into two pages (left first). Each
+   * page is then enhanced with `corrections` (see pipeline/enhance.js). */
+  process: ({ image, fallback, split = false, corrections }) => {
     const detected = detectPage(cv, image) ?? fallback ?? null;
     const used = detected ?? FULL_QUAD;
     /** @type {any[]} */
@@ -121,11 +123,21 @@ const handlers = {
       const { spread, gutter } = findBinding(warpPage(cv, image, used, { maxSide: 800 }));
       if (spread && gutter !== null) quads = splitQuad(used, gutter);
     }
-    const pages = quads.map((quad) => ({ quad, image: warpPage(cv, image, quad) }));
+    const pages = quads.map((quad) => {
+      const straight = warpPage(cv, image, quad);
+      const { applied, ...enhanced } = enhancePage(cv, straight, corrections);
+      return { quad, image: straight, enhanced, applied };
+    });
     return {
       result: { pages, detected: Boolean(detected), spread: pages.length > 1 },
-      transfer: pages.map((p) => p.image.data.buffer),
+      transfer: pages.flatMap((p) => [p.image.data.buffer, p.enhanced.data.buffer]),
     };
+  },
+
+  /** Enhance a straightened page again (a correction turned on or off). */
+  enhance: ({ image, corrections }) => {
+    const { applied, ...enhanced } = enhancePage(cv, image, corrections);
+    return { result: { image: enhanced, applied }, transfer: [enhanced.data.buffer] };
   },
 };
 

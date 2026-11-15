@@ -3,8 +3,10 @@
  * dialog, camera with live page detection, rotation and mirror, automatic
  * or manual capture (stillness, sharpness, page change, finger on the text,
  * light) with feedback and spoken announcements, double pages split at the
- * binding, perspective correction, manual corner adjustment, page
- * orientation, book title, simple PDF export.
+ * binding, perspective correction, corrections (curvature, cleaning and
+ * colour mode, uniform margins) shown before/after and undoable one by one,
+ * manual corner adjustment, retake, page orientation, book title, simple
+ * PDF export.
  */
 
 import { t, setLanguage, getLanguage, matchLanguage, LANGUAGES, i18nEvents } from './i18n/i18n.js';
@@ -19,6 +21,8 @@ import { AutoCapture } from './capture/auto-capture.js';
 import { flyToStrip, vibrate, playSound } from './capture/feedback.js';
 import { isSharp } from './pipeline/sharpness.js';
 import { DEFAULT_FINGER_THRESHOLD } from './pipeline/fingers.js';
+import { CORRECTIONS, DEFAULT_CORRECTIONS } from './pipeline/enhance.js';
+import { COLOR_MODES } from './pipeline/clean.js';
 import { Announcer } from './ui/announcer.js';
 import { CornerEditor } from './ui/corner-editor.js';
 import { PageList } from './ui/page-list.js';
@@ -31,6 +35,8 @@ import { buildPdf } from './export/pdf.js';
 /** @typedef {import('./ui/page-list.js').Page} Page */
 /** @typedef {'ok' | 'warning' | 'error' | ''} State */
 /** @typedef {import('./lib/orientation.js').Orientation} Orientation */
+/** @typedef {import('./pipeline/enhance.js').Corrections} Corrections */
+/** @typedef {import('./pipeline/clean.js').ColorMode} ColorMode */
 
 /** @param {string} id */
 const $ = (id) => /** @type {any} */ (document.getElementById(id));
@@ -167,7 +173,30 @@ function initToggle(id, key, fallback) {
   input.addEventListener('change', () => setSetting(key, input.checked));
 }
 
+/**
+ * Fill a select with the colour modes, keeping its value.
+ * @param {HTMLSelectElement} select
+ * @param {string} fallback
+ */
+function fillColorSelect(select, fallback) {
+  const value = select.value || fallback;
+  select.replaceChildren(...COLOR_MODES.map((mode) => new Option(t(`colors.${mode}`), mode)));
+  select.value = value;
+}
+
+/** @returns {ColorMode} colour mode of new pages */
+function defaultColorMode() {
+  const mode = getSetting('colorMode', 'color');
+  return COLOR_MODES.includes(mode) ? mode : 'color';
+}
+
+/** @returns {Corrections} corrections of new pages */
+const defaultCorrections = () => ({ ...DEFAULT_CORRECTIONS, color: defaultColorMode() });
+
 function initCaptureSettings() {
+  const color = $('color-select');
+  fillColorSelect(color, defaultColorMode());
+  color.addEventListener('change', () => setSetting('colorMode', color.value));
   initToggle('split-toggle', 'splitSpreads', true);
   initToggle('vibrate-toggle', 'captureVibrate', true);
   initToggle('sound-toggle', 'captureSound', true);
@@ -381,6 +410,9 @@ let screens;
 /** @param {{ width: number, height: number, data: Uint8ClampedArray }} image */
 const toJpeg = (image) => imageToJpeg(image, 0.9);
 
+/** Page being retaken (its next capture replaces it), 0 if none. */
+let retakeId = 0;
+
 async function onCapture() {
   const video = $('camera-preview');
   const status = $('scan-status');
@@ -392,14 +424,23 @@ async function onCapture() {
   try {
     const frame = grabFrame(video, Infinity, undefined, cameraOrientation);
     const photo = toJpeg(frame); // copies the pixels before the transfer below
+    const corrections = defaultCorrections();
     const result = await callOpenCV('process', {
-      image: frame, fallback: detector.quad, split: getSetting('splitSpreads', true) === true,
+      image: frame, fallback: detector.quad, split: getSetting('splitSpreads', true) === true, corrections,
     }, [frame.data.buffer]);
     const shot = await photo;
-    const images = await Promise.all(result.pages.map((/** @type {any} */ p) => toJpeg(p.image)));
+    const images = await Promise.all(result.pages.map(async (/** @type {any} */ p) => ({
+      straight: await toJpeg(p.image), enhanced: await toJpeg(p.enhanced),
+    })));
+    // A retaken page is replaced where it was in the book.
+    const replaced = retakeId ? pages.numberOf(retakeId) : 0;
+    let index = replaced ? replaced - 1 : pages.pages.length;
+    if (replaced) pages.remove(retakeId);
+    retakeId = 0;
     const added = result.pages.map((/** @type {any} */ p, /** @type {number} */ i) => pages.add({
-      photo: shot, quad: p.quad, image: images[i], detected: result.detected,
-    }));
+      photo: shot, quad: p.quad, detected: result.detected, straight: images[i].straight,
+      enhanced: images[i].enhanced, image: images[i].enhanced, corrections, applied: p.applied,
+    }, index++));
     // This page is taken: the automatic capture waits for the next one.
     autoCapture.markCaptured(fingerprint, performance.now());
     const numbers = added.map((/** @type {Page} */ page) => pages.numberOf(page.id));
@@ -410,6 +451,7 @@ async function onCapture() {
     setStatus(status, key, params, result.detected ? 'ok' : 'warning');
     announcer.say(t(key, params), { force: true });
     captureFeedback(added.at(-1)?.url);
+    if (replaced) screens.go(`page/${added[0].id}`);
   } catch (error) {
     setStatus(status, 'scan.failed', { error: String(error) }, 'error');
     announcer.say(t('scan.failed', { error: String(error) }), { force: true });
@@ -553,9 +595,111 @@ function renderReview() {
   const img = $('review-image');
   img.src = page.url;
   img.alt = t('review.image', { number });
+  $('review-before').src = page.beforeUrl;
   setStatus($('review-state'), page.detected ? 'review.stateDone' : 'review.stateRetake', {}, page.detected ? 'ok' : 'warning');
   $('review-mirror').setAttribute('aria-pressed', String(page.orientation.mirror));
+  renderCorrections(page);
+  updateCompare();
   return true;
+}
+
+/**
+ * One chip-button per correction: pressed when on; turning it off undoes it.
+ * @param {Page} page
+ */
+function renderCorrections(page) {
+  const chips = CORRECTIONS.map((name) => {
+    const on = page.corrections[name];
+    const label = t(`corrections.${name}`);
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'chip chip-toggle';
+    chip.dataset.correction = name;
+    chip.dataset.tone = on ? 'ok' : 'info';
+    chip.setAttribute('aria-pressed', String(on));
+    chip.title = t(on ? 'corrections.undo' : 'corrections.redo', { name: label });
+    chip.disabled = correcting;
+    const text = document.createElement('span');
+    text.textContent = on && !page.applied[name] ? t('corrections.notNeeded', { name: label }) : label;
+    chip.append(createIcon(on ? 'check' : 'close'), text);
+    return chip;
+  });
+  $('review-correction-list').replaceChildren(...chips);
+  const select = $('review-color');
+  fillColorSelect(select, page.corrections.color);
+  select.value = page.corrections.color;
+  select.disabled = correcting;
+}
+
+/** Move the before/after split to the range value. */
+function updateCompare() {
+  const range = $('review-compare-range');
+  const value = Number(range.value);
+  $('review-compare').style.setProperty('--split', `${value}%`);
+  range.setAttribute('aria-valuetext', t('review.compareValue', { after: 100 - value }));
+}
+
+/**
+ * Apply the corrections to a straightened page.
+ * @param {Blob | ImageData} straight
+ * @param {Corrections} corrections
+ * @returns {Promise<{ enhanced: Blob, applied: Record<string, boolean> }>}
+ */
+async function enhance(straight, corrections) {
+  const image = straight instanceof Blob ? await blobToImageData(straight) : straight;
+  const result = await callOpenCV('enhance', { image, corrections }, [image.data.buffer]);
+  return { enhanced: await toJpeg(result.image), applied: result.applied };
+}
+
+let correcting = false;
+
+/**
+ * Turn corrections on or off (or change the colour mode) and redo the page.
+ * @param {Partial<Corrections>} change
+ * @param {string} [announce] spoken once done
+ */
+async function onCorrect(change, announce) {
+  const page = pages.get(reviewId);
+  if (!page || correcting) return;
+  correcting = true;
+  const status = $('review-status');
+  setStatus(status, 'review.applying');
+  renderCorrections(page);
+  try {
+    const corrections = { ...page.corrections, ...change };
+    const { enhanced, applied } = await enhance(page.straight, corrections);
+    const image = await orientPage(enhanced, page.orientation);
+    correcting = false;
+    pages.update(page.id, { corrections, applied, enhanced, image });
+    clearStatus(status);
+    if (announce) announcer.say(announce, { force: true });
+  } catch (error) {
+    setStatus(status, 'review.failed', { error: String(error) }, 'error');
+  } finally {
+    correcting = false;
+    const current = pages.get(reviewId);
+    if (current) renderCorrections(current);
+  }
+}
+
+/** @param {MouseEvent} event */
+function onCorrectionClick(event) {
+  const chip = /** @type {HTMLElement} */ (event.target).closest?.('[data-correction]');
+  const page = pages.get(reviewId);
+  if (!chip || !page) return;
+  const name = /** @type {'dewarp' | 'clean' | 'crop'} */ (chip.getAttribute('data-correction'));
+  const on = !page.corrections[name];
+  const label = t(`corrections.${name}`);
+  onCorrect({ [name]: on }, t(on ? 'corrections.redone' : 'corrections.undone', { name: label }));
+}
+
+/** Take this page again: the next capture replaces it. */
+function onRetake() {
+  const number = pages.numberOf(reviewId);
+  if (!number) return;
+  retakeId = reviewId;
+  screens.go('capture');
+  announcer.say(t('review.retakeHint', { number }), { force: true });
 }
 
 /**
@@ -576,7 +720,8 @@ async function onOrientPage(change) {
   orienting = true;
   try {
     const orientation = change(page.orientation);
-    pages.update(page.id, { orientation, image: await orientPage(page.straight, orientation) });
+    const [image, before] = await Promise.all([orientPage(page.enhanced, orientation), orientPage(page.straight, orientation)]);
+    pages.update(page.id, { orientation, image, before });
     clearStatus($('review-status'));
   } catch (error) {
     setStatus($('review-status'), 'orientation.failed', { error: String(error) }, 'error');
@@ -596,7 +741,11 @@ async function onAdjust() {
     const image = await blobToImageData(page.photo);
     const result = await callOpenCV('warp', { image, quad }, [image.data.buffer]);
     const straight = await toJpeg(result.image);
-    pages.update(page.id, { quad, straight, image: await orientPage(straight, page.orientation) });
+    const { enhanced, applied } = await enhance(result.image, page.corrections);
+    const [oriented, before] = await Promise.all([
+      orientPage(enhanced, page.orientation), orientPage(straight, page.orientation),
+    ]);
+    pages.update(page.id, { quad, straight, enhanced, applied, image: oriented, before });
     clearStatus(status);
   } catch (error) {
     setStatus(status, 'corners.failed', { error: String(error) }, 'error');
@@ -613,6 +762,10 @@ function onDelete() {
 function initReview() {
   cornerEditor = new CornerEditor($('corner-dialog'));
   $('review-adjust').addEventListener('click', onAdjust);
+  $('review-retake').addEventListener('click', onRetake);
+  $('review-correction-list').addEventListener('click', onCorrectionClick);
+  $('review-color').addEventListener('change', () => onCorrect({ color: $('review-color').value }));
+  $('review-compare-range').addEventListener('input', updateCompare);
   $('review-delete').addEventListener('click', onDelete);
   $('review-rotate-left').addEventListener('click', () => onOrientPage((o) => rotate(o, -90)));
   $('review-rotate-right').addEventListener('click', () => onOrientPage((o) => rotate(o, 90)));
@@ -693,7 +846,13 @@ async function main() {
   $('book-rename').addEventListener('click', onRename);
 
   screens = new Screens(document, {
-    capture: { enter: () => { startCapture(); }, leave: stopCapture },
+    capture: {
+      enter: () => { startCapture(); },
+      leave: () => {
+        stopCapture();
+        retakeId = 0;
+      },
+    },
     page: {
       enter: (param) => {
         reviewId = Number(param);
@@ -706,6 +865,7 @@ async function main() {
   i18nEvents.addEventListener('change', () => {
     retranslateStatuses();
     fillThemeSelect();
+    fillColorSelect($('color-select'), defaultColorMode());
     renderBook();
     refreshCameraList().catch(() => {});
   });

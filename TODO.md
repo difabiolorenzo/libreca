@@ -79,11 +79,11 @@
 - [x] Détection de la reliure et découpage gauche/droite — double page si plus large que haute, reliure = colonnes sans texte et ombre au milieu (binding.js), découpage en perspective exacte ; trait pointillé sur la reliure dans le viseur ; désactivable dans les paramètres
 
 ### v0.3 — Qualité « livre numérique »
-- [ ] Nettoyage : fond blanc, ombres, contraste, modes couleur / gris / N&B
-- [ ] Recadrage et marges uniformes
-- [ ] Correction de courbure simple (lignes de texte)
-- [ ] Écran de revue de page (maquette « 2 · Revue de page ») : comparateur avant/après (`input type="range"` étiqueté, flèches du clavier), pastilles des corrections appliquées, boutons Reprendre / Valider
-- [ ] Chaque correction nommée et annulable (pastille-bouton)
+- [x] Nettoyage : fond blanc, ombres, contraste, modes couleur / gris / N&B
+- [x] Recadrage et marges uniformes
+- [x] Correction de courbure simple (lignes de texte)
+- [x] Écran de revue de page (maquette « 2 · Revue de page ») : comparateur avant/après (`input type="range"` étiqueté, flèches du clavier), pastilles des corrections appliquées, boutons Reprendre / Valider
+- [x] Chaque correction nommée et annulable (pastille-bouton)
 - [ ] Écran livre (maquette « 3 · Livre & export PDF ») : couverture, titre, nombre de pages, grille de vignettes
 - [ ] Réordonner les pages par glisser-déposer ET boutons Monter / Descendre ; supprimer, reprendre une page
 - [ ] Bibliothèque : liste des livres en cours, créer un livre, supprimer (action `danger` avec confirmation)
